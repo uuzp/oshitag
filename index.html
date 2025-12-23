@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#111827" />
+  <title>oshiTag</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./assets/icons/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./assets/css/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-title">
+      <h1>oshiTag</h1>
+    </div>
+    <div class="header-actions">
+      <div class="menu">
+        <button id="btnMenu" class="btn btn-secondary" aria-haspopup="true" aria-expanded="false">⋯</button>
+        <div id="menuPanel" class="menu-panel" role="menu" aria-hidden="true">
+          <button id="btnExportMd" class="menu-item" role="menuitem">导出 MD</button>
+          <label class="menu-item" role="menuitem" for="fileImportMd">导入 MD</label>
+          <input id="fileImportMd" class="sr-only" type="file" accept=".md,text/markdown" />
+          <button id="btnHelp" class="menu-item" role="menuitem">帮助</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="panel">
+      <div id="groupTabs" class="tabs" aria-label="组合"></div>
+      <div id="groupStage" class="stage" aria-label="当前组合"></div>
+    </section>
+
+    <section class="panel" id="favoritesPanel">
+      <div id="favTabs" class="tabs" aria-label="收藏夹"></div>
+      <div id="favStage" class="stage" aria-label="当前收藏夹"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <h3 id="modalTitle" class="modal-title">Modal</h3>
+        <button class="icon-btn ghost" type="button" data-modal-close aria-label="关闭">×</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+      <div id="modalActions" class="modal-actions"></div>
+    </div>
+  </div>
+
+  <script src="./assets/js/app.js"></script>
+</body>
+</html>

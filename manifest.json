@@ -1,0 +1,25 @@
+{
+  "name": "oshiTag",
+  "short_name": "oshiTag",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#111827",
+  "description": "组合-偶像-TAG 管理：单击复制、双击删除；支持收藏夹与 MD 导入导出。",
+  "version": "0.1.0",
+  "icons": [
+    {
+      "src": "./assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
