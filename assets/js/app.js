@@ -1418,6 +1418,8 @@ function localeOptions() {
 }
 
 function showLanguageModal() {
+  const prev = { mode: i18n.mode, locale: i18n.locale };
+
   const wrap = document.createElement('div');
   wrap.className = 'field';
 
@@ -1453,6 +1455,34 @@ function showLanguageModal() {
 
   wrap.appendChild(label);
   wrap.appendChild(sel);
+
+  const updateTexts = (els) => {
+    $('#modalTitle').textContent = t('lang.title');
+    label.textContent = t('lang.current');
+    optAuto.textContent = t('lang.auto');
+    hint.textContent = t('lang.jsonHint');
+
+    if (els?.cancel) els.cancel.textContent = t('modal.cancel');
+    if (els?.edit) els.edit.textContent = t('lang.editJson');
+    if (els?.add) els.add.textContent = t('lang.add');
+    if (els?.del) els.del.textContent = t('lang.delete');
+    if (els?.ok) els.ok.textContent = t('modal.ok');
+  };
+
+  const applySelection = (v, { persist } = { persist: false }) => {
+    if (v === 'auto') {
+      if (persist) localStorage.setItem(I18N_STORAGE_LANG, 'auto');
+      i18n.mode = 'auto';
+      i18n.locale = pickLocaleAuto();
+    } else {
+      if (persist) localStorage.setItem(I18N_STORAGE_LANG, v);
+      i18n.mode = 'manual';
+      i18n.locale = v;
+    }
+    if (!i18n.bundles.has(i18n.locale)) i18n.locale = i18n.fallback;
+    applyI18n();
+    render();
+  };
 
   const deleteBtn = btn(t('lang.delete'), 'btn btn-secondary', async () => {
     const code = sel.value;
@@ -1516,33 +1546,42 @@ function showLanguageModal() {
   sel.addEventListener('change', updateDeleteState);
   updateDeleteState();
 
-  const actions = [
-    btn(t('modal.cancel'), 'btn btn-secondary', closeModal),
-    btn(t('lang.editJson'), 'btn btn-secondary', async () => {
+  sel.addEventListener('change', () => {
+    applySelection(sel.value, { persist: false });
+    updateTexts(els);
+    updateDeleteState();
+    toast(t('lang.applied', { code: i18n.mode === 'auto' ? pickLocaleAuto() : i18n.locale }));
+  });
+
+  const onCancel = () => {
+    i18n.mode = prev.mode;
+    i18n.locale = prev.locale;
+    applyI18n();
+    render();
+    closeModal();
+  };
+
+  const els = {
+    cancel: btn(t('modal.cancel'), 'btn btn-secondary', onCancel),
+    edit: btn(t('lang.editJson'), 'btn btn-secondary', async () => {
       const mode = sel.value;
       const code = mode === 'auto' ? pickLocaleAuto() : mode;
       await showEditLocaleJson(code);
+      showLanguageModal();
     }),
-    btn(t('lang.add'), 'btn btn-secondary', async () => {
+    add: btn(t('lang.add'), 'btn btn-secondary', async () => {
       await showAddLocaleFlow();
+      showLanguageModal();
     }),
-    deleteBtn,
-    btn(t('modal.ok'), 'btn', () => {
-      const v = sel.value;
-      if (v === 'auto') {
-        localStorage.setItem(I18N_STORAGE_LANG, 'auto');
-        i18n.mode = 'auto';
-        i18n.locale = pickLocaleAuto();
-      } else {
-        localStorage.setItem(I18N_STORAGE_LANG, v);
-        i18n.mode = 'manual';
-        i18n.locale = v;
-      }
-      applyI18n();
-      render();
+    ok: btn(t('modal.ok'), 'btn', () => {
+      applySelection(sel.value, { persist: true });
       closeModal();
     })
-  ];
+  };
+
+  updateTexts(els);
+
+  const actions = [els.cancel, els.edit, els.add, deleteBtn, els.ok];
 
   openModal(t('lang.title'), wrap, actions);
 }

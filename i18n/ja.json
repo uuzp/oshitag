@@ -78,6 +78,7 @@
   "lang.deleteConfirm": "言語を削除しますか：{code}？（ユーザー追加のみ）",
   "lang.deleteNotAllowed": "内蔵言語は削除できません",
   "lang.deleted": "削除しました：{code}",
+  "lang.applied": "適用しました：{code}",
   "lang.jsonHint": "翻訳JSON（key: text）。保存後すぐ反映されます。",
   "lang.save": "保存",
   "lang.saved": "保存しました",

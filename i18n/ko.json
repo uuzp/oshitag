@@ -78,6 +78,7 @@
   "lang.deleteConfirm": "언어를 삭제할까요: {code}? (사용자 추가 언어만 삭제)",
   "lang.deleteNotAllowed": "내장 언어는 삭제할 수 없습니다",
   "lang.deleted": "삭제됨: {code}",
+  "lang.applied": "적용됨: {code}",
   "lang.jsonHint": "번역 JSON(key: text). 저장하면 즉시 적용됩니다.",
   "lang.save": "저장",
   "lang.saved": "저장됨",
