@@ -2,6 +2,7 @@
 
 纯 HTML/CSS/JS 的离线可用(PWA)小工具：管理「组合 → 偶像 → TAG」与「收藏夹」，并一键复制到剪贴板。
 
+[![DEMO](https://img.shields.io/website?url=https%3A%2F%2Fuuzp.github.io%2Foshitag%2F&label=DEMO&up_message=online&down_message=down)](https://uuzp.github.io/oshitag/)
 ## 使用
 
 - 顶部「组合」标签页
