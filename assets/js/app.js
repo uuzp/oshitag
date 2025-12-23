@@ -191,6 +191,13 @@ const PRESET_COLORS = [
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
+function isLikelyIOS() {
+  const ua = String(navigator.userAgent || '');
+  // iPadOS 13+ may report as Mac; detect touch points.
+  const isAppleTouchDesktop = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+  return /iP(hone|od|ad)/.test(ua) || isAppleTouchDesktop;
+}
+
 function attachLongPress(el, { onLongPress, ms = 520, moveTolerance = 10 }) {
   let timer = null;
   let startX = 0;
@@ -535,7 +542,38 @@ async function copyText(label, tags) {
   const text = list.join(' ');
   if (!text) return toast(t('toast.copyEmpty') || '');
   const ok = await writeClipboard(text);
-  toast(ok ? t('toast.copied', { label }) : t('toast.copyFailed'));
+  if (ok) {
+    toast(t('toast.copied', { label }));
+    return;
+  }
+
+  toast(t('toast.copyFailed'));
+
+  // Some environments (notably iOS Safari/PWA) may block programmatic clipboard
+  // writes unless the call is in a strict user-gesture. Provide a manual fallback.
+  const wrap = document.createElement('div');
+  wrap.className = 'field';
+
+  const hint = document.createElement('div');
+  hint.style.color = 'var(--muted)';
+  hint.style.fontSize = '12px';
+  hint.textContent = '可手动全选并复制：';
+
+  const textarea = document.createElement('textarea');
+  textarea.className = 'input';
+  textarea.setAttribute('readonly', '');
+  textarea.style.minHeight = '120px';
+  textarea.style.resize = 'vertical';
+  textarea.value = text;
+
+  wrap.appendChild(hint);
+  wrap.appendChild(textarea);
+
+  openModal(t('toast.copyFailed') || '复制失败', wrap, [btn(t('modal.gotIt') || '知道了', 'btn', closeModal)]);
+  requestAnimationFrame(() => {
+    textarea.focus();
+    textarea.select();
+  });
 }
 
 function findGroup(id) {
@@ -643,6 +681,42 @@ function showPrompt({ title, placeholder, okText = '确定' }) {
     ]);
 
     requestAnimationFrame(() => input.focus());
+  });
+}
+
+function showCopyDialog({ title, text }) {
+  const wrap = document.createElement('div');
+  wrap.className = 'field';
+
+  const hint = document.createElement('div');
+  hint.style.color = 'var(--muted)';
+  hint.style.fontSize = '12px';
+  hint.textContent = t('copyDialog.hint') || '';
+
+  const textarea = document.createElement('textarea');
+  textarea.className = 'input';
+  textarea.setAttribute('readonly', '');
+  textarea.style.minHeight = '120px';
+  textarea.style.resize = 'vertical';
+  textarea.value = String(text || '');
+
+  wrap.appendChild(hint);
+  wrap.appendChild(textarea);
+
+  const onCopy = async () => {
+    const ok = await writeClipboard(textarea.value);
+    toast(ok ? (t('toast.copied', { label: title }) || '') : t('toast.copyFailed'));
+    if (ok) closeModal();
+  };
+
+  openModal(String(title || ''), wrap, [
+    btn(t('modal.cancel') || '取消', 'btn btn-secondary', closeModal),
+    btn(t('copyDialog.copy') || t('modal.ok') || '复制', 'btn', onCopy)
+  ]);
+
+  requestAnimationFrame(() => {
+    textarea.focus();
+    textarea.select();
   });
 }
 
@@ -1219,14 +1293,26 @@ function render() {
   groupOnSelect.onLongPress = (groupId) => {
     const g = findGroup(groupId);
     if (!g) return;
-    copyText(g.name, collectGroupAllTags(g));
+    const list = tagsToCopy(collectGroupAllTags(g));
+    const text = list.join(' ');
+    if (!text) return toast(t('toast.copyEmpty') || '');
+
+    // iOS Safari/PWA often blocks clipboard writes for delayed long-press callbacks.
+    // Use a user-click button inside a modal for reliable copying.
+    if (isLikelyIOS()) return showCopyDialog({ title: g.name, text });
+    copyText(g.name, list);
   };
 
   const favOnSelect = setActiveFav;
   favOnSelect.onLongPress = (folderId) => {
     const f = findFav(folderId);
     if (!f) return;
-    copyText(f.name, f.tags);
+    const list = tagsToCopy(f.tags);
+    const text = list.join(' ');
+    if (!text) return toast(t('toast.copyEmpty') || '');
+
+    if (isLikelyIOS()) return showCopyDialog({ title: f.name, text });
+    copyText(f.name, list);
   };
 
   renderTabs($('#groupTabs'), state.data.groups, activeGroup()?.id || null, {

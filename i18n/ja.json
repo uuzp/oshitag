@@ -15,6 +15,9 @@
   "toast.copyEmpty": "コピーするタグがありません",
   "toast.copyFailed": "コピーに失敗しました（ブラウザ権限）",
 
+  "copyDialog.hint": "iOS では長押しの直接コピーが制限される場合があります。ボタンでコピー、または手動で全選択してコピーしてください。",
+  "copyDialog.copy": "コピー",
+
   "empty.groups": "まだグループがありません。",
   "empty.favorites": "まだお気に入りがありません。",
 

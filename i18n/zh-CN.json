@@ -15,6 +15,9 @@
   "toast.copyEmpty": "没有可复制的TAG",
   "toast.copyFailed": "复制失败（浏览器权限限制）",
 
+  "copyDialog.hint": "iOS 可能限制长按直接复制：可点下方按钮复制，或手动全选复制。",
+  "copyDialog.copy": "复制",
+
   "empty.groups": "还没有组合。",
   "empty.favorites": "还没有收藏夹。",
 
