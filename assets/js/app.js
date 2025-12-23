@@ -469,6 +469,11 @@ async function writeClipboard(text) {
       ta.style.position = 'fixed';
       ta.style.left = '-9999px';
       ta.style.top = '0';
+      // iOS Safari/PWA may zoom the page when focusing a small-font input.
+      // Ensure >=16px to avoid unintended zoom during copy fallback.
+      ta.style.fontSize = '16px';
+      ta.style.opacity = '0';
+      ta.style.pointerEvents = 'none';
       document.body.appendChild(ta);
       ta.select();
       const ok = document.execCommand('copy');
@@ -1217,6 +1222,13 @@ function render() {
     copyText(g.name, collectGroupAllTags(g));
   };
 
+  const favOnSelect = setActiveFav;
+  favOnSelect.onLongPress = (folderId) => {
+    const f = findFav(folderId);
+    if (!f) return;
+    copyText(f.name, f.tags);
+  };
+
   renderTabs($('#groupTabs'), state.data.groups, activeGroup()?.id || null, {
     onSelect: groupOnSelect,
     onAdd: addGroup,
@@ -1225,7 +1237,7 @@ function render() {
   });
 
   renderTabs($('#favTabs'), state.data.favorites, activeFav()?.id || null, {
-    onSelect: setActiveFav,
+    onSelect: favOnSelect,
     onAdd: addFavFolder,
     onDelete: deleteFavFolder,
     emptyEmoji: '➕'
