@@ -564,7 +564,9 @@ function setActiveFav(id) {
 }
 
 // ---------- Modal ----------
-function openModal(title, bodyNode, actions) {
+let modalOnRequestClose = null;
+
+function openModal(title, bodyNode, actions, onRequestClose = null) {
   const modal = $('#modal');
   $('#modalTitle').textContent = title;
   const body = $('#modalBody');
@@ -575,6 +577,8 @@ function openModal(title, bodyNode, actions) {
   act.innerHTML = '';
   for (const a of actions) act.appendChild(a);
 
+  modalOnRequestClose = typeof onRequestClose === 'function' ? onRequestClose : null;
+
   modal.classList.add('open');
   modal.setAttribute('aria-hidden', 'false');
 }
@@ -583,6 +587,12 @@ function closeModal() {
   const modal = $('#modal');
   modal.classList.remove('open');
   modal.setAttribute('aria-hidden', 'true');
+  modalOnRequestClose = null;
+}
+
+function requestModalClose() {
+  if (typeof modalOnRequestClose === 'function') return modalOnRequestClose();
+  closeModal();
 }
 
 function btn(text, className, onClick) {
@@ -1462,7 +1472,6 @@ function showLanguageModal() {
     optAuto.textContent = t('lang.auto');
     hint.textContent = t('lang.jsonHint');
 
-    if (els?.cancel) els.cancel.textContent = t('modal.cancel');
     if (els?.edit) els.edit.textContent = t('lang.editJson');
     if (els?.add) els.add.textContent = t('lang.add');
     if (els?.del) els.del.textContent = t('lang.delete');
@@ -1553,7 +1562,7 @@ function showLanguageModal() {
     toast(t('lang.applied', { code: i18n.mode === 'auto' ? pickLocaleAuto() : i18n.locale }));
   });
 
-  const onCancel = () => {
+  const onDismiss = () => {
     i18n.mode = prev.mode;
     i18n.locale = prev.locale;
     applyI18n();
@@ -1562,7 +1571,6 @@ function showLanguageModal() {
   };
 
   const els = {
-    cancel: btn(t('modal.cancel'), 'btn btn-secondary', onCancel),
     edit: btn(t('lang.editJson'), 'btn btn-secondary', async () => {
       const mode = sel.value;
       const code = mode === 'auto' ? pickLocaleAuto() : mode;
@@ -1579,11 +1587,13 @@ function showLanguageModal() {
     })
   };
 
+  els.del = deleteBtn;
+
   updateTexts(els);
 
-  const actions = [els.cancel, els.edit, els.add, deleteBtn, els.ok];
+  const actions = [els.edit, els.add, deleteBtn, els.ok];
 
-  openModal(t('lang.title'), wrap, actions);
+  openModal(t('lang.title'), wrap, actions, onDismiss);
 }
 
 async function showAddLocaleFlow() {
@@ -1659,7 +1669,7 @@ function showEditLocaleJson(code) {
 function initModalClose() {
   const modal = $('#modal');
   modal.addEventListener('click', (e) => {
-    if (e.target && e.target.matches('[data-modal-close]')) closeModal();
+    if (e.target && e.target.matches('[data-modal-close]')) requestModalClose();
   });
 }
 
