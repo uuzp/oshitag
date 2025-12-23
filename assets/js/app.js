@@ -285,8 +285,24 @@ function loadData() {
 }
 
 const state = {
-  data: loadData()
+  data: loadData(),
+  runtime: {
+    editMode: false
+  }
 };
+
+function isEditMode() {
+  return !!state.runtime.editMode;
+}
+
+function setEditMode(v) {
+  state.runtime.editMode = !!v;
+  render();
+}
+
+function toggleEditMode() {
+  setEditMode(!isEditMode());
+}
 
 function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
@@ -543,29 +559,30 @@ function showHelp() {
       单击复制，双击删除。导入/导出在右上角 ⋯。
     </div>
     <div>
+      <div style="color: var(--muted); font-size: 12px; margin-bottom: 10px;">
+        默认是浏览模式（隐藏加号）。点右上角“＋”进入编辑模式（可新增/删除/改色）。
+      </div>
       <b>组合（顶部标签页）</b>
       <ul>
         <li>单击：切换</li>
-        <li>双击：删除该组合</li>
         <li>长按：复制该组合内所有TAG</li>
-        <li>点击“➕/＋”：新增组合</li>
+        <li>编辑模式：显示“＋”并允许新增/双击删除</li>
       </ul>
       <b>偶像</b>
       <ul>
         <li>单击偶像名：复制该偶像全部TAG</li>
-        <li>双击偶像名：删除该偶像</li>
-        <li>点击颜色圆点：设置应援色（7个预设 + HEX输入）</li>
-        <li>点击“+”TAG：添加TAG（支持空格/逗号/# 分隔批量）</li>
+        <li>编辑模式：双击偶像名删除；点颜色圆点改色；点“+”新增TAG</li>
       </ul>
       <b>TAG</b>
       <ul>
         <li>单击TAG：复制该TAG</li>
-        <li>双击TAG：删除该TAG</li>
+        <li>编辑模式：双击TAG删除</li>
       </ul>
       <b>收藏夹</b>
       <ul>
         <li>两层结构：收藏夹 → TAG</li>
         <li>单击收藏夹大矩形空白处：复制该收藏夹全部TAG</li>
+        <li>编辑模式：显示“+”新增TAG；双击TAG删除</li>
       </ul>
     </div>
   `;
@@ -779,13 +796,17 @@ function deleteFavTag(folderId, tagId) {
 function renderTabs(rootEl, items, activeId, { onSelect, onAdd, onDelete, emptyEmoji }) {
   rootEl.innerHTML = '';
 
+  const editMode = isEditMode();
+
   if (items.length === 0) {
-    const plus = document.createElement('div');
-    plus.className = 'tab plus empty-plus';
-    plus.textContent = emptyEmoji || '➕';
-    plus.title = '新增';
-    plus.addEventListener('click', onAdd);
-    rootEl.appendChild(plus);
+    if (editMode) {
+      const plus = document.createElement('div');
+      plus.className = 'tab plus empty-plus';
+      plus.textContent = emptyEmoji || '➕';
+      plus.title = '新增';
+      plus.addEventListener('click', onAdd);
+      rootEl.appendChild(plus);
+    }
     return;
   }
 
@@ -809,16 +830,18 @@ function renderTabs(rootEl, items, activeId, { onSelect, onAdd, onDelete, emptyE
       }
       onSelect(it.id);
     });
-    t.addEventListener('dblclick', () => onDelete(it.id));
+    if (editMode) t.addEventListener('dblclick', () => onDelete(it.id));
     rootEl.appendChild(t);
   }
 
-  const plus = document.createElement('div');
-  plus.className = 'tab plus';
-  plus.textContent = '＋';
-  plus.title = '新增';
-  plus.addEventListener('click', onAdd);
-  rootEl.appendChild(plus);
+  if (editMode) {
+    const plus = document.createElement('div');
+    plus.className = 'tab plus';
+    plus.textContent = '＋';
+    plus.title = '新增';
+    plus.addEventListener('click', onAdd);
+    rootEl.appendChild(plus);
+  }
 }
 
 function renderGroupStage() {
@@ -830,7 +853,7 @@ function renderGroupStage() {
     const empty = document.createElement('div');
     empty.className = 'big-card';
     empty.style.color = 'var(--muted)';
-    empty.textContent = '还没有组合。点击上方 ➕ 新增。';
+    empty.textContent = '还没有组合。';
     stage.appendChild(empty);
     return;
   }
@@ -851,15 +874,17 @@ function renderGroupStage() {
     grid.appendChild(renderIdolCard(g, idol));
   }
 
-  const plus = document.createElement('div');
-  plus.className = 'idol-card idol-add';
-  plus.textContent = '＋';
-  plus.title = '新增偶像';
-  plus.addEventListener('click', (e) => {
-    e.stopPropagation();
-    addIdol(g.id);
-  });
-  grid.appendChild(plus);
+  if (isEditMode()) {
+    const plus = document.createElement('div');
+    plus.className = 'idol-card idol-add';
+    plus.textContent = '＋';
+    plus.title = '新增偶像';
+    plus.addEventListener('click', (e) => {
+      e.stopPropagation();
+      addIdol(g.id);
+    });
+    grid.appendChild(plus);
+  }
 
   card.appendChild(grid);
   stage.appendChild(card);
@@ -880,6 +905,7 @@ function renderIdolCard(group, idol) {
   dot.style.background = idol.cheerColor || PRESET_COLORS[0];
   dot.title = '设置应援色';
   dot.addEventListener('click', (e) => {
+    if (!isEditMode()) return;
     e.stopPropagation();
     showColorPicker({
       title: `应援色：${idol.name}`,
@@ -902,7 +928,7 @@ function renderIdolCard(group, idol) {
   head.appendChild(left);
 
   head.addEventListener('click', () => copyText(idol.name, idol.tags));
-  head.addEventListener('dblclick', () => deleteIdol(group.id, idol.id));
+  if (isEditMode()) head.addEventListener('dblclick', () => deleteIdol(group.id, idol.id));
 
   const tags = document.createElement('div');
   tags.className = 'tag-grid';
@@ -915,22 +941,26 @@ function renderIdolCard(group, idol) {
       e.stopPropagation();
       copyText(chip.textContent, [chip.textContent]);
     });
-    chip.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-      deleteTag(group.id, idol.id, t.id);
-    });
+    if (isEditMode()) {
+      chip.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        deleteTag(group.id, idol.id, t.id);
+      });
+    }
     tags.appendChild(chip);
   }
 
-  const plus = document.createElement('div');
-  plus.className = 'tag plus';
-  plus.textContent = '+';
-  plus.title = '新增TAG';
-  plus.addEventListener('click', (e) => {
-    e.stopPropagation();
-    addTagsToIdol(group.id, idol.id);
-  });
-  tags.appendChild(plus);
+  if (isEditMode()) {
+    const plus = document.createElement('div');
+    plus.className = 'tag plus';
+    plus.textContent = '+';
+    plus.title = '新增TAG';
+    plus.addEventListener('click', (e) => {
+      e.stopPropagation();
+      addTagsToIdol(group.id, idol.id);
+    });
+    tags.appendChild(plus);
+  }
 
   card.appendChild(head);
   card.appendChild(tags);
@@ -947,7 +977,7 @@ function renderFavoritesStage() {
     const empty = document.createElement('div');
     empty.className = 'big-card';
     empty.style.color = 'var(--muted)';
-    empty.textContent = '还没有收藏夹。点击上方 ➕ 新增。';
+    empty.textContent = '还没有收藏夹。';
     stage.appendChild(empty);
     return;
   }
@@ -970,28 +1000,39 @@ function renderFavoritesStage() {
       e.stopPropagation();
       copyText(chip.textContent, [chip.textContent]);
     });
-    chip.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-      deleteFavTag(f.id, t.id);
-    });
+    if (isEditMode()) {
+      chip.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        deleteFavTag(f.id, t.id);
+      });
+    }
     tags.appendChild(chip);
   }
 
-  const plus = document.createElement('div');
-  plus.className = 'tag plus';
-  plus.textContent = '+';
-  plus.title = '新增TAG';
-  plus.addEventListener('click', (e) => {
-    e.stopPropagation();
-    addFavTags(f.id);
-  });
-  tags.appendChild(plus);
+  if (isEditMode()) {
+    const plus = document.createElement('div');
+    plus.className = 'tag plus';
+    plus.textContent = '+';
+    plus.title = '新增TAG';
+    plus.addEventListener('click', (e) => {
+      e.stopPropagation();
+      addFavTags(f.id);
+    });
+    tags.appendChild(plus);
+  }
 
   card.appendChild(tags);
   stage.appendChild(card);
 }
 
 function render() {
+  document.body.classList.toggle('edit-on', isEditMode());
+  const btnEdit = $('#btnEdit');
+  if (btnEdit) {
+    btnEdit.setAttribute('aria-pressed', isEditMode() ? 'true' : 'false');
+    btnEdit.setAttribute('aria-label', isEditMode() ? '退出编辑' : '编辑');
+  }
+
   const groupOnSelect = setActiveGroup;
   groupOnSelect.onLongPress = (groupId) => {
     const g = findGroup(groupId);
@@ -1171,6 +1212,7 @@ function initMenu() {
     if (e.key === 'Escape') {
       closeMenu();
       closeModal();
+      if (isEditMode()) setEditMode(false);
     }
   });
 
@@ -1223,6 +1265,12 @@ function init() {
   initModalClose();
   initDisableContextMenu();
   initPwa();
+
+  const btnEdit = $('#btnEdit');
+  if (btnEdit) {
+    btnEdit.addEventListener('click', () => toggleEditMode());
+  }
+
   render();
 }
 

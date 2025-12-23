@@ -51,6 +51,19 @@ a { color: inherit; }
   align-items: center;
 }
 
+.btn-edit {
+  width: 40px;
+  padding: 9px 0;
+  display: grid;
+  place-items: center;
+  transition: transform 160ms ease;
+  font-weight: 800;
+}
+
+body.edit-on .btn-edit {
+  transform: rotate(45deg);
+}
+
 .btn {
   border: 1px solid rgba(255,255,255,0.18);
   background: rgba(255,255,255,0.06);
@@ -137,6 +150,14 @@ a { color: inherit; }
 .empty-plus {
   font-size: 22px;
   padding: 10px 12px;
+}
+
+/* Browse mode: hide editing affordances */
+body:not(.edit-on) .tab.plus,
+body:not(.edit-on) .empty-plus,
+body:not(.edit-on) .idol-add,
+body:not(.edit-on) .tag.plus {
+  display: none;
 }
 
 .stage {
