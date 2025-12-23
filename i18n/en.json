@@ -1,0 +1,85 @@
+{
+  "meta.name": "English",
+
+  "app.title": "oshiTag",
+
+  "menu.export": "Export",
+  "menu.import": "Import",
+  "menu.help": "Help",
+  "menu.language": "Language",
+
+  "edit.enter": "Edit",
+  "edit.exit": "Exit",
+
+  "toast.copied": "Copied: {label}",
+  "toast.copyEmpty": "No tags to copy",
+  "toast.copyFailed": "Copy failed (browser permission)"
+,
+  "empty.groups": "No groups yet.",
+  "empty.favorites": "No favorites yet.",
+
+  "prompt.groupAdd.title": "New group",
+  "prompt.groupAdd.placeholder": "Group name",
+  "prompt.idolAdd.title": "New idol",
+  "prompt.idolAdd.placeholder": "Idol name",
+
+  "prompt.tagAdd.title": "New tags",
+  "prompt.tagAdd.placeholder": "Split by space / comma / #",
+
+  "prompt.favAdd.title": "New folder",
+  "prompt.favAdd.placeholder": "Folder name",
+
+  "prompt.favTagAdd.title": "Add tags to favorites",
+  "prompt.favTagAdd.ok": "Add",
+  "toast.favTagAdded": "Added",
+  "toast.favTagExists": "Already exists",
+  "toast.mdImported": "Imported",
+  "toast.hexInvalid": "Please enter HEX like #39c5bb",
+
+  "modal.cancel": "Cancel",
+  "modal.ok": "OK",
+  "modal.gotIt": "Got it",
+
+  "help.title": "Help",
+  "help.intro": "Tap to copy, double-tap to delete. Import/Export is under ⋯.",
+  "help.modeTip": "Browse mode hides plus buttons. Tap “＋” to enter edit mode (add/delete/color).",
+
+  "help.section.groups": "Groups (tabs)",
+  "help.groups.switch": "Tap: switch",
+  "help.groups.longPressCopy": "Long-press: copy all tags in this group",
+  "help.groups.edit": "Edit mode: shows “＋” and enables add/double-tap delete",
+
+  "help.section.idols": "Idols",
+  "help.idols.copy": "Tap idol name: copy all tags",
+  "help.idols.edit": "Edit mode: double-tap to delete; tap color dot to change; tap “+” to add tags",
+
+  "help.section.tags": "Tags",
+  "help.tags.copy": "Tap tag: copy",
+  "help.tags.edit": "Edit mode: double-tap tag to delete",
+
+  "help.section.favorites": "Favorites",
+  "help.favorites.about": "Two levels: folder → tags",
+  "help.favorites.copy": "Tap blank area: copy all tags",
+  "help.favorites.edit": "Edit mode: shows “+” to add; double-tap tag to delete",
+
+  "add.title": "Add",
+  "add.idol": "Add idol",
+  "add.tag": "Add tag(s)",
+
+  "color.title": "Cheer color: {name}",
+
+  "lang.title": "Language",
+  "lang.current": "Current language",
+  "lang.auto": "Auto (browser)",
+  "lang.manage": "Manage translations",
+  "lang.add": "Add language",
+  "lang.editJson": "Edit current JSON",
+  "lang.jsonHint": "Translation JSON (key: text). Save applies immediately.",
+  "lang.save": "Save",
+  "lang.saved": "Saved",
+  "lang.invalidJson": "Invalid JSON",
+  "lang.addCodeTitle": "Add language",
+  "lang.addCodePlaceholder": "Language code, e.g. en / ja / zh-CN",
+  "lang.addNameTitle": "Language name",
+  "lang.addNamePlaceholder": "e.g. English / 日本語"
+}

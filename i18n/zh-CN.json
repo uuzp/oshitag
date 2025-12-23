@@ -1,0 +1,85 @@
+{
+  "meta.name": "简体中文",
+
+  "app.title": "oshiTag",
+
+  "menu.export": "导出",
+  "menu.import": "导入",
+  "menu.help": "帮助",
+  "menu.language": "语言",
+
+  "edit.enter": "编辑",
+  "edit.exit": "退出编辑",
+
+  "toast.copied": "已复制：{label}",
+  "toast.copyEmpty": "没有可复制的TAG",
+  "toast.copyFailed": "复制失败（浏览器权限限制）",
+
+  "empty.groups": "还没有组合。",
+  "empty.favorites": "还没有收藏夹。",
+
+  "prompt.groupAdd.title": "新增组合",
+  "prompt.groupAdd.placeholder": "组合名",
+  "prompt.idolAdd.title": "新增偶像",
+  "prompt.idolAdd.placeholder": "偶像名",
+
+  "prompt.tagAdd.title": "新增TAG",
+  "prompt.tagAdd.placeholder": "支持空格 / 逗号 / # 分隔批量",
+
+  "prompt.favAdd.title": "新增收藏夹",
+  "prompt.favAdd.placeholder": "收藏夹名称",
+
+  "prompt.favTagAdd.title": "新增TAG到收藏夹",
+  "prompt.favTagAdd.ok": "添加",
+  "toast.favTagAdded": "已添加到收藏夹",
+  "toast.favTagExists": "收藏夹里已经有这个TAG",
+  "toast.mdImported": "已导入",
+  "toast.hexInvalid": "请输入形如 #39c5bb 的HEX颜色",
+
+  "modal.cancel": "取消",
+  "modal.ok": "确定",
+  "modal.gotIt": "知道了",
+
+  "help.title": "帮助",
+  "help.intro": "单击复制，双击删除。导入/导出在右上角 ⋯。",
+  "help.modeTip": "默认是浏览模式（隐藏加号）。点右上角“＋”进入编辑模式（可新增/删除/改色）。",
+
+  "help.section.groups": "组合（顶部标签页）",
+  "help.groups.switch": "单击：切换",
+  "help.groups.longPressCopy": "长按：复制该组合内所有TAG",
+  "help.groups.edit": "编辑模式：显示“＋”并允许新增/双击删除",
+
+  "help.section.idols": "偶像",
+  "help.idols.copy": "单击偶像名：复制该偶像全部TAG",
+  "help.idols.edit": "编辑模式：双击偶像名删除；点颜色圆点改色；点“+”新增TAG",
+
+  "help.section.tags": "TAG",
+  "help.tags.copy": "单击TAG：复制该TAG",
+  "help.tags.edit": "编辑模式：双击TAG删除",
+
+  "help.section.favorites": "收藏夹",
+  "help.favorites.about": "两层结构：收藏夹 → TAG",
+  "help.favorites.copy": "单击收藏夹大矩形空白处：复制该收藏夹全部TAG",
+  "help.favorites.edit": "编辑模式：显示“+”新增TAG；双击TAG删除",
+
+  "add.title": "新增",
+  "add.idol": "新增偶像",
+  "add.tag": "新增TAG",
+
+  "color.title": "应援色：{name}",
+
+  "lang.title": "语言",
+  "lang.current": "当前语言",
+  "lang.auto": "自动（跟随浏览器）",
+  "lang.manage": "管理翻译",
+  "lang.add": "新增语言",
+  "lang.editJson": "编辑当前语言 JSON",
+  "lang.jsonHint": "这里是翻译 JSON（key: 文案）。保存后立即生效。",
+  "lang.save": "保存",
+  "lang.saved": "已保存",
+  "lang.invalidJson": "JSON 格式不正确",
+  "lang.addCodeTitle": "新增语言",
+  "lang.addCodePlaceholder": "语言代码，例如 en / ja / zh-CN",
+  "lang.addNameTitle": "语言名称",
+  "lang.addNamePlaceholder": "例如 English / 日本語 / 简体中文"
+}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'oshitag-0.1.0-1';
+const CACHE_NAME = 'oshitag-0.1.0-3';
 
 const ASSETS = [
   './',
@@ -6,6 +6,8 @@ const ASSETS = [
   './assets/css/styles.css',
   './assets/js/app.js',
   './manifest.json',
+  './i18n/zh-CN.json',
+  './i18n/en.json',
   './assets/icons/icon.svg',
   './assets/icons/maskable.svg'
 ];

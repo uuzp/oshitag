@@ -6,6 +6,145 @@
 
 const APP_VERSION = '0.1.0';
 
+// ---------- i18n ----------
+const I18N_STORAGE_LANG = 'oshitag:i18n:lang';
+const I18N_STORAGE_USER_LOCALES = 'oshitag:i18n:userLocales:v1';
+
+const BUILTIN_LOCALES = [
+  { code: 'zh-CN', path: './i18n/zh-CN.json' },
+  { code: 'en', path: './i18n/en.json' }
+];
+
+const i18n = {
+  ready: false,
+  locale: 'zh-CN',
+  mode: 'auto', // 'auto' | 'manual'
+  bundles: new Map(), // code -> { name, strings }
+  strings: {},
+  fallback: 'zh-CN'
+};
+
+function getBrowserLangCandidates() {
+  const raw = String(navigator.language || '').trim();
+  if (!raw) return ['zh-CN'];
+  const lower = raw.toLowerCase();
+  const base = lower.split('-')[0];
+  const out = [];
+  // Prefer exact match first
+  out.push(raw);
+  out.push(lower);
+  out.push(base);
+  // Common Chinese variants
+  if (base === 'zh') out.push('zh-CN');
+  return Array.from(new Set(out));
+}
+
+function safeParseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function loadUserLocales() {
+  const raw = localStorage.getItem(I18N_STORAGE_USER_LOCALES);
+  if (!raw) return {};
+  const parsed = safeParseJson(raw);
+  if (!parsed || typeof parsed !== 'object') return {};
+  return parsed;
+}
+
+function saveUserLocales(obj) {
+  localStorage.setItem(I18N_STORAGE_USER_LOCALES, JSON.stringify(obj));
+}
+
+async function loadBuiltinLocale(def) {
+  try {
+    const res = await fetch(def.path, { cache: 'no-cache' });
+    const data = await res.json();
+    if (!data || typeof data !== 'object') throw new Error('invalid');
+    const name = String(data['meta.name'] || def.code);
+    return { code: def.code, name, strings: data };
+  } catch {
+    // If fetch fails (offline), keep minimal fallback
+    return { code: def.code, name: def.code, strings: {} };
+  }
+}
+
+function pickLocaleAuto() {
+  const have = new Set(i18n.bundles.keys());
+  for (const c of getBrowserLangCandidates()) {
+    const normalized = String(c).trim();
+    if (!normalized) continue;
+    // exact
+    if (have.has(normalized)) return normalized;
+    // case-insensitive match
+    const found = Array.from(have).find((x) => x.toLowerCase() === normalized.toLowerCase());
+    if (found) return found;
+    // base language match
+    const base = normalized.toLowerCase().split('-')[0];
+    const baseFound = Array.from(have).find((x) => x.toLowerCase().split('-')[0] === base);
+    if (baseFound) return baseFound;
+  }
+  return i18n.fallback;
+}
+
+function applyI18n() {
+  const fallback = i18n.bundles.get(i18n.fallback)?.strings || {};
+  const current = i18n.bundles.get(i18n.locale)?.strings || {};
+  i18n.strings = { ...fallback, ...current };
+
+  // Static nodes with data-i18n
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    const key = el.getAttribute('data-i18n');
+    if (!key) continue;
+    const text = t(key);
+    if (text) el.textContent = text;
+  }
+
+  document.title = t('app.title') || document.title;
+}
+
+function t(key, vars) {
+  const raw = i18n.strings?.[key];
+  const base = raw == null ? '' : String(raw);
+  if (!vars) return base;
+  return base.replace(/\{(\w+)\}/g, (_, k) => {
+    const v = vars[k];
+    return v == null ? '' : String(v);
+  });
+}
+
+async function initI18n() {
+  // Load built-ins
+  const builtins = await Promise.all(BUILTIN_LOCALES.map(loadBuiltinLocale));
+  for (const b of builtins) i18n.bundles.set(b.code, { name: b.name, strings: b.strings });
+
+  // Merge user locales (override / add)
+  const user = loadUserLocales();
+  for (const [code, bundle] of Object.entries(user)) {
+    if (!bundle || typeof bundle !== 'object') continue;
+    const name = String(bundle.name || code);
+    const strings = bundle.strings && typeof bundle.strings === 'object' ? bundle.strings : {};
+    i18n.bundles.set(code, { name, strings });
+  }
+
+  const saved = localStorage.getItem(I18N_STORAGE_LANG);
+  if (saved && saved !== 'auto') {
+    i18n.mode = 'manual';
+    i18n.locale = saved;
+  } else {
+    i18n.mode = 'auto';
+    i18n.locale = pickLocaleAuto();
+  }
+
+  if (!i18n.bundles.has(i18n.locale)) i18n.locale = i18n.fallback;
+
+  i18n.ready = true;
+  applyI18n();
+}
+
 const STORAGE_KEY = 'oshitag:data:v2';
 const LEGACY_KEY = 'oshitag:data:v1';
 const MD_FAVORITES_HEADING = '[FAVORITES]';
@@ -387,9 +526,9 @@ function suggestedTagsFromGroups({ preferGroupId = null, limit = 24 } = {}) {
 async function copyText(label, tags) {
   const list = tagsToCopy(tags);
   const text = list.join(' ');
-  if (!text) return toast('没有可复制的TAG');
+  if (!text) return toast(t('toast.copyEmpty') || '');
   const ok = await writeClipboard(text);
-  toast(ok ? `已复制：${label}` : '复制失败（浏览器权限限制）');
+  toast(ok ? t('toast.copied', { label }) : t('toast.copyFailed'));
 }
 
 function findGroup(id) {
@@ -544,7 +683,7 @@ function showTagPromptWithSuggestions({
     });
 
     openModal(title, wrap, [
-      btn('取消', 'btn btn-secondary', onCancel),
+      btn(t('modal.cancel'), 'btn btn-secondary', onCancel),
       btn(okText, 'btn', onOk)
     ]);
 
@@ -553,41 +692,41 @@ function showTagPromptWithSuggestions({
 }
 
 function showHelp() {
-  const div = document.createElement('div');
-  div.innerHTML = `
-    <div style="color: var(--muted); font-size: 12px; margin-bottom: 10px;">
-      单击复制，双击删除。导入/导出在右上角 ⋯。
-    </div>
-    <div>
-      <div style="color: var(--muted); font-size: 12px; margin-bottom: 10px;">
-        默认是浏览模式（隐藏加号）。点右上角“＋”进入编辑模式（可新增/删除/改色）。
-      </div>
-      <b>组合（顶部标签页）</b>
-      <ul>
-        <li>单击：切换</li>
-        <li>长按：复制该组合内所有TAG</li>
-        <li>编辑模式：显示“＋”并允许新增/双击删除</li>
-      </ul>
-      <b>偶像</b>
-      <ul>
-        <li>单击偶像名：复制该偶像全部TAG</li>
-        <li>编辑模式：双击偶像名删除；点颜色圆点改色；点“+”新增TAG</li>
-      </ul>
-      <b>TAG</b>
-      <ul>
-        <li>单击TAG：复制该TAG</li>
-        <li>编辑模式：双击TAG删除</li>
-      </ul>
-      <b>收藏夹</b>
-      <ul>
-        <li>两层结构：收藏夹 → TAG</li>
-        <li>单击收藏夹大矩形空白处：复制该收藏夹全部TAG</li>
-        <li>编辑模式：显示“+”新增TAG；双击TAG删除</li>
-      </ul>
-    </div>
-  `;
+  const root = document.createElement('div');
 
-  openModal('帮助', div, [btn('知道了', 'btn', closeModal)]);
+  const intro = document.createElement('div');
+  intro.style.color = 'var(--muted)';
+  intro.style.fontSize = '12px';
+  intro.style.marginBottom = '10px';
+  intro.textContent = t('help.intro');
+
+  const tip = document.createElement('div');
+  tip.style.color = 'var(--muted)';
+  tip.style.fontSize = '12px';
+  tip.style.marginBottom = '10px';
+  tip.textContent = t('help.modeTip');
+
+  const section = (titleKey, items) => {
+    const b = document.createElement('b');
+    b.textContent = t(titleKey);
+    const ul = document.createElement('ul');
+    for (const k of items) {
+      const li = document.createElement('li');
+      li.textContent = t(k);
+      ul.appendChild(li);
+    }
+    root.appendChild(b);
+    root.appendChild(ul);
+  };
+
+  root.appendChild(intro);
+  root.appendChild(tip);
+  section('help.section.groups', ['help.groups.switch', 'help.groups.longPressCopy', 'help.groups.edit']);
+  section('help.section.idols', ['help.idols.copy', 'help.idols.edit']);
+  section('help.section.tags', ['help.tags.copy', 'help.tags.edit']);
+  section('help.section.favorites', ['help.favorites.about', 'help.favorites.copy', 'help.favorites.edit']);
+
+  openModal(t('help.title'), root, [btn(t('modal.gotIt'), 'btn', closeModal)]);
 }
 
 function showColorPicker({ title, initial, onPick }) {
@@ -605,7 +744,7 @@ function showColorPicker({ title, initial, onPick }) {
   const apply = (v) => {
     const val = String(v || '').trim();
     if (!/^#[0-9a-fA-F]{6}$/.test(val)) {
-      toast('请输入形如 #39c5bb 的HEX颜色');
+      toast(t('toast.hexInvalid'));
       return;
     }
     closeModal();
@@ -630,8 +769,8 @@ function showColorPicker({ title, initial, onPick }) {
   wrap.appendChild(input);
 
   openModal(title, wrap, [
-    btn('取消', 'btn btn-secondary', closeModal),
-    btn('确定', 'btn', () => apply(input.value))
+    btn(t('modal.cancel'), 'btn btn-secondary', closeModal),
+    btn(t('modal.ok'), 'btn', () => apply(input.value))
   ]);
 
   requestAnimationFrame(() => input.focus());
@@ -639,7 +778,7 @@ function showColorPicker({ title, initial, onPick }) {
 
 // ---------- Actions ----------
 async function addGroup() {
-  const name = await showPrompt({ title: '新增组合', placeholder: '组合名' });
+  const name = await showPrompt({ title: t('prompt.groupAdd.title'), placeholder: t('prompt.groupAdd.placeholder') });
   if (!name) return;
   const g = { id: uid(), name: name.trim(), idols: [] };
   if (!g.name) return;
@@ -650,7 +789,7 @@ async function addGroup() {
 }
 
 async function addIdol(groupId) {
-  const name = await showPrompt({ title: '新增偶像', placeholder: '偶像名' });
+  const name = await showPrompt({ title: t('prompt.idolAdd.title'), placeholder: t('prompt.idolAdd.placeholder') });
   if (!name) return;
   const g = findGroup(groupId);
   if (!g) return;
@@ -662,7 +801,7 @@ async function addIdol(groupId) {
 }
 
 async function addTagsToIdol(groupId, idolId) {
-  const raw = await showPrompt({ title: '新增TAG', placeholder: '支持空格 / 逗号 / # 分隔批量' });
+  const raw = await showPrompt({ title: t('prompt.tagAdd.title'), placeholder: t('prompt.tagAdd.placeholder') });
   if (!raw) return;
   const parts = parseTagsInput(raw);
   if (parts.length === 0) return;
@@ -716,7 +855,7 @@ function deleteTag(groupId, idolId, tagId) {
 }
 
 async function addFavFolder() {
-  const name = await showPrompt({ title: '新增收藏夹', placeholder: '收藏夹名称' });
+  const name = await showPrompt({ title: t('prompt.favAdd.title'), placeholder: t('prompt.favAdd.placeholder') });
   if (!name) return;
   const f = { id: uid(), name: name.trim(), tags: [] };
   if (!f.name) return;
@@ -729,8 +868,8 @@ async function addFavFolder() {
 async function addFavTags(folderId) {
   const suggestions = suggestedTagsFromGroups({ preferGroupId: activeGroup()?.id || null, limit: 28 });
   const raw = await showTagPromptWithSuggestions({
-    title: '新增TAG到收藏夹',
-    placeholder: '支持空格 / 逗号 / # 分隔批量',
+    title: t('prompt.favTagAdd.title'),
+    placeholder: t('prompt.tagAdd.placeholder'),
     suggestions,
     onSuggestionPicked: (tagText) => {
       const f = findFav(folderId);
@@ -742,17 +881,17 @@ async function addFavTags(folderId) {
       const key = norm.toLowerCase();
       const existing = new Set(f.tags.map((t) => normalizeTagText(t.text)).map((t) => t.toLowerCase()));
       if (existing.has(key)) {
-        toast('收藏夹里已经有这个TAG');
+        toast(t('toast.favTagExists'));
         return true;
       }
 
       f.tags.push({ id: uid(), text: norm });
       saveData();
       render();
-      toast('已添加到收藏夹');
+      toast(t('toast.favTagAdded'));
       return true;
     },
-    okText: '添加'
+    okText: t('prompt.favTagAdd.ok')
   });
   if (!raw) return;
   const parts = parseTagsInput(raw);
@@ -803,7 +942,7 @@ function renderTabs(rootEl, items, activeId, { onSelect, onAdd, onDelete, emptyE
       const plus = document.createElement('div');
       plus.className = 'tab plus empty-plus';
       plus.textContent = emptyEmoji || '➕';
-      plus.title = '新增';
+      plus.title = t('add.title');
       plus.addEventListener('click', onAdd);
       rootEl.appendChild(plus);
     }
@@ -838,7 +977,7 @@ function renderTabs(rootEl, items, activeId, { onSelect, onAdd, onDelete, emptyE
     const plus = document.createElement('div');
     plus.className = 'tab plus';
     plus.textContent = '＋';
-    plus.title = '新增';
+    plus.title = t('add.title');
     plus.addEventListener('click', onAdd);
     rootEl.appendChild(plus);
   }
@@ -853,7 +992,7 @@ function renderGroupStage() {
     const empty = document.createElement('div');
     empty.className = 'big-card';
     empty.style.color = 'var(--muted)';
-    empty.textContent = '还没有组合。';
+    empty.textContent = t('empty.groups');
     stage.appendChild(empty);
     return;
   }
@@ -878,7 +1017,7 @@ function renderGroupStage() {
     const plus = document.createElement('div');
     plus.className = 'idol-card idol-add';
     plus.textContent = '＋';
-    plus.title = '新增偶像';
+    plus.title = t('add.idol');
     plus.addEventListener('click', (e) => {
       e.stopPropagation();
       addIdol(g.id);
@@ -908,7 +1047,7 @@ function renderIdolCard(group, idol) {
     if (!isEditMode()) return;
     e.stopPropagation();
     showColorPicker({
-      title: `应援色：${idol.name}`,
+      title: t('color.title', { name: idol.name }),
       initial: idol.cheerColor,
       onPick: (c) => {
         idol.cheerColor = c;
@@ -954,7 +1093,7 @@ function renderIdolCard(group, idol) {
     const plus = document.createElement('div');
     plus.className = 'tag plus';
     plus.textContent = '+';
-    plus.title = '新增TAG';
+    plus.title = t('add.tag');
     plus.addEventListener('click', (e) => {
       e.stopPropagation();
       addTagsToIdol(group.id, idol.id);
@@ -977,7 +1116,7 @@ function renderFavoritesStage() {
     const empty = document.createElement('div');
     empty.className = 'big-card';
     empty.style.color = 'var(--muted)';
-    empty.textContent = '还没有收藏夹。';
+    empty.textContent = t('empty.favorites');
     stage.appendChild(empty);
     return;
   }
@@ -1013,7 +1152,7 @@ function renderFavoritesStage() {
     const plus = document.createElement('div');
     plus.className = 'tag plus';
     plus.textContent = '+';
-    plus.title = '新增TAG';
+    plus.title = t('add.tag');
     plus.addEventListener('click', (e) => {
       e.stopPropagation();
       addFavTags(f.id);
@@ -1030,7 +1169,7 @@ function render() {
   const btnEdit = $('#btnEdit');
   if (btnEdit) {
     btnEdit.setAttribute('aria-pressed', isEditMode() ? 'true' : 'false');
-    btnEdit.setAttribute('aria-label', isEditMode() ? '退出编辑' : '编辑');
+    btnEdit.setAttribute('aria-label', isEditMode() ? t('edit.exit') : t('edit.enter'));
   }
 
   const groupOnSelect = setActiveGroup;
@@ -1181,7 +1320,7 @@ function importMarkdown(mdText) {
   state.data = next;
   saveData();
   render();
-  toast('已导入 MD');
+  toast(t('toast.mdImported'));
 }
 
 // ---------- Menu + PWA ----------
@@ -1234,6 +1373,157 @@ function initMenu() {
     closeMenu();
     showHelp();
   });
+
+  $('#btnLang')?.addEventListener('click', () => {
+    closeMenu();
+    showLanguageModal();
+  });
+}
+
+function localeOptions() {
+  const items = [];
+  for (const [code, bundle] of i18n.bundles.entries()) {
+    items.push({ code, name: bundle?.name || code });
+  }
+  items.sort((a, b) => a.code.localeCompare(b.code));
+  return items;
+}
+
+function showLanguageModal() {
+  const wrap = document.createElement('div');
+  wrap.className = 'field';
+
+  const label = document.createElement('div');
+  label.style.color = 'var(--muted)';
+  label.style.fontSize = '12px';
+  label.style.marginBottom = '8px';
+  label.textContent = t('lang.current');
+
+  const sel = document.createElement('select');
+  sel.className = 'input';
+  sel.style.height = '42px';
+
+  const optAuto = document.createElement('option');
+  optAuto.value = 'auto';
+  optAuto.textContent = t('lang.auto');
+  sel.appendChild(optAuto);
+
+  for (const it of localeOptions()) {
+    const o = document.createElement('option');
+    o.value = it.code;
+    o.textContent = `${it.name} (${it.code})`;
+    sel.appendChild(o);
+  }
+
+  sel.value = i18n.mode === 'auto' ? 'auto' : i18n.locale;
+
+  const hint = document.createElement('div');
+  hint.style.color = 'var(--muted)';
+  hint.style.fontSize = '12px';
+  hint.style.marginTop = '10px';
+  hint.textContent = t('lang.jsonHint');
+
+  wrap.appendChild(label);
+  wrap.appendChild(sel);
+
+  const actions = [
+    btn(t('modal.cancel'), 'btn btn-secondary', closeModal),
+    btn(t('lang.editJson'), 'btn btn-secondary', async () => {
+      const mode = sel.value;
+      const code = mode === 'auto' ? pickLocaleAuto() : mode;
+      await showEditLocaleJson(code);
+    }),
+    btn(t('lang.add'), 'btn btn-secondary', async () => {
+      await showAddLocaleFlow();
+    }),
+    btn(t('modal.ok'), 'btn', () => {
+      const v = sel.value;
+      if (v === 'auto') {
+        localStorage.setItem(I18N_STORAGE_LANG, 'auto');
+        i18n.mode = 'auto';
+        i18n.locale = pickLocaleAuto();
+      } else {
+        localStorage.setItem(I18N_STORAGE_LANG, v);
+        i18n.mode = 'manual';
+        i18n.locale = v;
+      }
+      applyI18n();
+      render();
+      closeModal();
+    })
+  ];
+
+  openModal(t('lang.title'), wrap, actions);
+}
+
+async function showAddLocaleFlow() {
+  const code = await showPrompt({ title: t('lang.addCodeTitle'), placeholder: t('lang.addCodePlaceholder'), okText: t('modal.ok') });
+  if (!code) return;
+  const cleanCode = String(code).trim();
+  if (!cleanCode) return;
+  const name = await showPrompt({ title: t('lang.addNameTitle'), placeholder: t('lang.addNamePlaceholder'), okText: t('modal.ok') });
+  if (name == null) return;
+
+  const user = loadUserLocales();
+  if (!user[cleanCode]) user[cleanCode] = { name: String(name || cleanCode), strings: {} };
+  saveUserLocales(user);
+
+  i18n.bundles.set(cleanCode, { name: String(name || cleanCode), strings: {} });
+  await showEditLocaleJson(cleanCode);
+}
+
+function showEditLocaleJson(code) {
+  return new Promise((resolve) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'input';
+    textarea.style.minHeight = '240px';
+    textarea.style.resize = 'vertical';
+
+    const current = i18n.bundles.get(code)?.strings || {};
+    // Don't require users to edit meta.name but allow it if they want
+    textarea.value = JSON.stringify(current, null, 2);
+
+    wrap.appendChild(textarea);
+
+    const onSave = () => {
+      const parsed = safeParseJson(textarea.value);
+      if (!parsed || typeof parsed !== 'object') {
+        toast(t('lang.invalidJson'));
+        return;
+      }
+
+      const user = loadUserLocales();
+      const prevName = user[code]?.name || i18n.bundles.get(code)?.name || code;
+      const name = String(parsed['meta.name'] || prevName);
+      user[code] = { name, strings: parsed };
+      saveUserLocales(user);
+
+      i18n.bundles.set(code, { name, strings: parsed });
+
+      // If editing current locale, re-apply
+      if (i18n.mode === 'manual' && i18n.locale === code) {
+        applyI18n();
+        render();
+      }
+
+      toast(t('lang.saved'));
+      closeModal();
+      resolve(true);
+    };
+
+    openModal(`${t('lang.manage')}：${code}`, wrap, [
+      btn(t('modal.cancel'), 'btn btn-secondary', () => {
+        closeModal();
+        resolve(false);
+      }),
+      btn(t('lang.save'), 'btn', onSave)
+    ]);
+
+    requestAnimationFrame(() => textarea.focus());
+  });
 }
 
 function initModalClose() {
@@ -1261,17 +1551,21 @@ function initDisableContextMenu() {
 }
 
 function init() {
-  initMenu();
-  initModalClose();
-  initDisableContextMenu();
-  initPwa();
+  // i18n must be ready before initial render/menu wiring
+  initI18n().finally(() => {
+    initMenu();
+    initModalClose();
+    initDisableContextMenu();
+    initPwa();
 
-  const btnEdit = $('#btnEdit');
-  if (btnEdit) {
-    btnEdit.addEventListener('click', () => toggleEditMode());
-  }
+    const btnEdit = $('#btnEdit');
+    if (btnEdit) {
+      btnEdit.addEventListener('click', () => toggleEditMode());
+    }
 
-  render();
+    applyI18n();
+    render();
+  });
 }
 
 init();
