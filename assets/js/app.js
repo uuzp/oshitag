@@ -4,7 +4,7 @@
  * Click to copy, double-click to delete
  */
 
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '0.2.0';
 
 // ---------- i18n ----------
 const I18N_STORAGE_LANG = 'oshitag:i18n:lang';
@@ -12,7 +12,9 @@ const I18N_STORAGE_USER_LOCALES = 'oshitag:i18n:userLocales:v1';
 
 const BUILTIN_LOCALES = [
   { code: 'zh-CN', path: './i18n/zh-CN.json' },
-  { code: 'en', path: './i18n/en.json' }
+  { code: 'en', path: './i18n/en.json' },
+  { code: 'ja', path: './i18n/ja.json' },
+  { code: 'ko', path: './i18n/ko.json' }
 ];
 
 const i18n = {
@@ -626,6 +628,32 @@ function showPrompt({ title, placeholder, okText = '确定' }) {
     ]);
 
     requestAnimationFrame(() => input.focus());
+  });
+}
+
+function showConfirm({ title, message, okText }) {
+  return new Promise((resolve) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+
+    const msg = document.createElement('div');
+    msg.style.whiteSpace = 'pre-wrap';
+    msg.textContent = String(message || '');
+    wrap.appendChild(msg);
+
+    const onOk = () => {
+      closeModal();
+      resolve(true);
+    };
+    const onCancel = () => {
+      closeModal();
+      resolve(false);
+    };
+
+    openModal(String(title || ''), wrap, [
+      btn(t('modal.cancel'), 'btn btn-secondary', onCancel),
+      btn(okText || t('modal.ok'), 'btn', onOk)
+    ]);
   });
 }
 
@@ -1426,6 +1454,68 @@ function showLanguageModal() {
   wrap.appendChild(label);
   wrap.appendChild(sel);
 
+  const deleteBtn = btn(t('lang.delete'), 'btn btn-secondary', async () => {
+    const code = sel.value;
+    if (!code || code === 'auto') return;
+    if (BUILTIN_LOCALES.some((x) => x.code === code)) {
+      toast(t('lang.deleteNotAllowed'));
+      return;
+    }
+
+    const user = loadUserLocales();
+    if (!Object.prototype.hasOwnProperty.call(user, code)) {
+      toast(t('lang.deleteNotAllowed'));
+      return;
+    }
+
+    const ok = await showConfirm({
+      title: t('lang.delete'),
+      message: t('lang.deleteConfirm', { code }),
+      okText: t('lang.delete')
+    });
+    if (!ok) return;
+
+    const user2 = loadUserLocales();
+    if (!Object.prototype.hasOwnProperty.call(user2, code)) return;
+    delete user2[code];
+    saveUserLocales(user2);
+    i18n.bundles.delete(code);
+
+    for (const o of Array.from(sel.options)) {
+      if (o.value === code) o.remove();
+    }
+
+    if (i18n.mode === 'manual' && i18n.locale === code) {
+      localStorage.setItem(I18N_STORAGE_LANG, 'auto');
+      i18n.mode = 'auto';
+      i18n.locale = pickLocaleAuto();
+      if (!i18n.bundles.has(i18n.locale)) i18n.locale = i18n.fallback;
+      sel.value = 'auto';
+    }
+
+    applyI18n();
+    render();
+    toast(t('lang.deleted', { code }));
+    updateDeleteState();
+  });
+
+  function updateDeleteState() {
+    const code = sel.value;
+    if (!code || code === 'auto') {
+      deleteBtn.disabled = true;
+      return;
+    }
+    if (BUILTIN_LOCALES.some((x) => x.code === code)) {
+      deleteBtn.disabled = true;
+      return;
+    }
+    const user = loadUserLocales();
+    deleteBtn.disabled = !Object.prototype.hasOwnProperty.call(user, code);
+  }
+
+  sel.addEventListener('change', updateDeleteState);
+  updateDeleteState();
+
   const actions = [
     btn(t('modal.cancel'), 'btn btn-secondary', closeModal),
     btn(t('lang.editJson'), 'btn btn-secondary', async () => {
@@ -1436,6 +1526,7 @@ function showLanguageModal() {
     btn(t('lang.add'), 'btn btn-secondary', async () => {
       await showAddLocaleFlow();
     }),
+    deleteBtn,
     btn(t('modal.ok'), 'btn', () => {
       const v = sel.value;
       if (v === 'auto') {

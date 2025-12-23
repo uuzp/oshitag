@@ -1,0 +1,89 @@
+{
+  "meta.name": "한국어",
+
+  "app.title": "oshiTag",
+
+  "menu.export": "내보내기",
+  "menu.import": "가져오기",
+  "menu.help": "도움말",
+  "menu.language": "언어",
+
+  "edit.enter": "편집",
+  "edit.exit": "편집 종료",
+
+  "toast.copied": "복사됨: {label}",
+  "toast.copyEmpty": "복사할 태그가 없습니다",
+  "toast.copyFailed": "복사 실패(브라우저 권한)",
+
+  "empty.groups": "아직 그룹이 없습니다.",
+  "empty.favorites": "아직 즐겨찾기가 없습니다.",
+
+  "prompt.groupAdd.title": "새 그룹",
+  "prompt.groupAdd.placeholder": "그룹 이름",
+  "prompt.idolAdd.title": "새 아이돌",
+  "prompt.idolAdd.placeholder": "아이돌 이름",
+
+  "prompt.tagAdd.title": "새 태그",
+  "prompt.tagAdd.placeholder": "공백 / 쉼표 / # 로 구분",
+
+  "prompt.favAdd.title": "새 폴더",
+  "prompt.favAdd.placeholder": "폴더 이름",
+
+  "prompt.favTagAdd.title": "즐겨찾기에 태그 추가",
+  "prompt.favTagAdd.ok": "추가",
+  "toast.favTagAdded": "추가됨",
+  "toast.favTagExists": "이미 있음",
+  "toast.mdImported": "가져옴",
+  "toast.hexInvalid": "#39c5bb 같은 HEX를 입력하세요",
+
+  "modal.cancel": "취소",
+  "modal.ok": "확인",
+  "modal.gotIt": "알겠어요",
+
+  "help.title": "도움말",
+  "help.intro": "탭: 복사, 더블탭: 삭제. 가져오기/내보내기는 오른쪽 위 ⋯.",
+  "help.modeTip": "보기 모드에서는 +가 숨겨집니다. 오른쪽 위 ‘＋’로 편집 모드(추가/삭제/색상).",
+
+  "help.section.groups": "그룹(탭)",
+  "help.groups.switch": "탭: 전환",
+  "help.groups.longPressCopy": "길게 누르기: 이 그룹의 모든 태그 복사",
+  "help.groups.edit": "편집 모드: ‘＋’ 표시, 더블탭 삭제",
+
+  "help.section.idols": "아이돌",
+  "help.idols.copy": "이름 탭: 모든 태그 복사",
+  "help.idols.edit": "편집 모드: 더블탭 삭제, 색상 점 탭 변경, +로 태그 추가",
+
+  "help.section.tags": "태그",
+  "help.tags.copy": "탭: 복사",
+  "help.tags.edit": "편집 모드: 더블탭 삭제",
+
+  "help.section.favorites": "즐겨찾기",
+  "help.favorites.about": "2단계: 폴더 → 태그",
+  "help.favorites.copy": "빈 영역 탭: 모든 태그 복사",
+  "help.favorites.edit": "편집 모드: +로 추가, 더블탭 삭제",
+
+  "add.title": "추가",
+  "add.idol": "아이돌 추가",
+  "add.tag": "태그 추가",
+
+  "color.title": "응원색: {name}",
+
+  "lang.title": "언어",
+  "lang.current": "현재 언어",
+  "lang.auto": "자동(브라우저)",
+  "lang.manage": "번역 관리",
+  "lang.add": "언어 추가",
+  "lang.editJson": "현재 JSON 편집",
+  "lang.delete": "언어 삭제",
+  "lang.deleteConfirm": "언어를 삭제할까요: {code}? (사용자 추가 언어만 삭제)",
+  "lang.deleteNotAllowed": "내장 언어는 삭제할 수 없습니다",
+  "lang.deleted": "삭제됨: {code}",
+  "lang.jsonHint": "번역 JSON(key: text). 저장하면 즉시 적용됩니다.",
+  "lang.save": "저장",
+  "lang.saved": "저장됨",
+  "lang.invalidJson": "JSON 형식이 올바르지 않습니다",
+  "lang.addCodeTitle": "언어 추가",
+  "lang.addCodePlaceholder": "언어 코드 예: en / ko / ja / zh-CN",
+  "lang.addNameTitle": "언어 이름",
+  "lang.addNamePlaceholder": "예: English / 한국어 / 日本語"
+}

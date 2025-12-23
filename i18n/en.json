@@ -13,8 +13,7 @@
 
   "toast.copied": "Copied: {label}",
   "toast.copyEmpty": "No tags to copy",
-  "toast.copyFailed": "Copy failed (browser permission)"
-,
+  "toast.copyFailed": "Copy failed (browser permission)",
   "empty.groups": "No groups yet.",
   "empty.favorites": "No favorites yet.",
 
@@ -74,6 +73,10 @@
   "lang.manage": "Manage translations",
   "lang.add": "Add language",
   "lang.editJson": "Edit current JSON",
+  "lang.delete": "Delete language",
+  "lang.deleteConfirm": "Delete language: {code}? (Only deletes user-added locales)",
+  "lang.deleteNotAllowed": "Built-in locales cannot be deleted",
+  "lang.deleted": "Deleted: {code}",
   "lang.jsonHint": "Translation JSON (key: text). Save applies immediately.",
   "lang.save": "Save",
   "lang.saved": "Saved",

@@ -1,0 +1,89 @@
+{
+  "meta.name": "日本語",
+
+  "app.title": "oshiTag",
+
+  "menu.export": "エクスポート",
+  "menu.import": "インポート",
+  "menu.help": "ヘルプ",
+  "menu.language": "言語",
+
+  "edit.enter": "編集",
+  "edit.exit": "編集終了",
+
+  "toast.copied": "コピーしました：{label}",
+  "toast.copyEmpty": "コピーするタグがありません",
+  "toast.copyFailed": "コピーに失敗しました（ブラウザ権限）",
+
+  "empty.groups": "まだグループがありません。",
+  "empty.favorites": "まだお気に入りがありません。",
+
+  "prompt.groupAdd.title": "新しいグループ",
+  "prompt.groupAdd.placeholder": "グループ名",
+  "prompt.idolAdd.title": "新しいアイドル",
+  "prompt.idolAdd.placeholder": "アイドル名",
+
+  "prompt.tagAdd.title": "新しいタグ",
+  "prompt.tagAdd.placeholder": "空白 / カンマ / # で区切る",
+
+  "prompt.favAdd.title": "新しいフォルダ",
+  "prompt.favAdd.placeholder": "フォルダ名",
+
+  "prompt.favTagAdd.title": "お気に入りにタグを追加",
+  "prompt.favTagAdd.ok": "追加",
+  "toast.favTagAdded": "追加しました",
+  "toast.favTagExists": "すでに存在します",
+  "toast.mdImported": "インポートしました",
+  "toast.hexInvalid": "#39c5bb のようなHEXを入力してください",
+
+  "modal.cancel": "キャンセル",
+  "modal.ok": "OK",
+  "modal.gotIt": "了解",
+
+  "help.title": "ヘルプ",
+  "help.intro": "タップでコピー、ダブルタップで削除。インポート/エクスポートは右上の ⋯。",
+  "help.modeTip": "閲覧モードでは＋が隠れます。右上の「＋」で編集モード（追加/削除/色）。",
+
+  "help.section.groups": "グループ（タブ）",
+  "help.groups.switch": "タップ：切り替え",
+  "help.groups.longPressCopy": "長押し：このグループの全タグをコピー",
+  "help.groups.edit": "編集モード：＋表示、ダブルタップ削除",
+
+  "help.section.idols": "アイドル",
+  "help.idols.copy": "名前をタップ：全タグをコピー",
+  "help.idols.edit": "編集モード：ダブルタップで削除、色点で変更、＋でタグ追加",
+
+  "help.section.tags": "タグ",
+  "help.tags.copy": "タップ：コピー",
+  "help.tags.edit": "編集モード：ダブルタップで削除",
+
+  "help.section.favorites": "お気に入り",
+  "help.favorites.about": "2階層：フォルダ → タグ",
+  "help.favorites.copy": "空白をタップ：全タグをコピー",
+  "help.favorites.edit": "編集モード：＋で追加、ダブルタップで削除",
+
+  "add.title": "追加",
+  "add.idol": "アイドルを追加",
+  "add.tag": "タグを追加",
+
+  "color.title": "応援色：{name}",
+
+  "lang.title": "言語",
+  "lang.current": "現在の言語",
+  "lang.auto": "自動（ブラウザ）",
+  "lang.manage": "翻訳を管理",
+  "lang.add": "言語を追加",
+  "lang.editJson": "現在のJSONを編集",
+  "lang.delete": "言語を削除",
+  "lang.deleteConfirm": "言語を削除しますか：{code}？（ユーザー追加のみ）",
+  "lang.deleteNotAllowed": "内蔵言語は削除できません",
+  "lang.deleted": "削除しました：{code}",
+  "lang.jsonHint": "翻訳JSON（key: text）。保存後すぐ反映されます。",
+  "lang.save": "保存",
+  "lang.saved": "保存しました",
+  "lang.invalidJson": "JSONが不正です",
+  "lang.addCodeTitle": "言語を追加",
+  "lang.addCodePlaceholder": "言語コード（例：en / ja / zh-CN）",
+  "lang.addNameTitle": "言語名",
+  "lang.addNamePlaceholder": "例：English / 日本語"
+}
