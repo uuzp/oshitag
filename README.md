@@ -1,4 +1,4 @@
-# oshiTag v0.2.0
+# oshiTag v0.2.1
 
 纯 HTML/CSS/JS 的离线可用(PWA)小工具：管理「组合 → 偶像 → TAG」与「收藏夹」，并一键复制到剪贴板。
 

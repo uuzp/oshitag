@@ -4,7 +4,7 @@
  * Click to copy, double-click to delete
  */
 
-const APP_VERSION = '0.2.0';
+const APP_VERSION = '0.2.1';
 
 // ---------- i18n ----------
 const I18N_STORAGE_LANG = 'oshitag:i18n:lang';

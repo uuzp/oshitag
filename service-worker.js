@@ -1,4 +1,4 @@
-const CACHE_NAME = 'oshitag-0.2.0-3';
+const CACHE_NAME = 'oshitag-0.2.1-0';
 
 const ASSETS = [
   './',
