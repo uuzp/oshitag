@@ -4,7 +4,7 @@
  * Click to copy, double-click to delete
  */
 
-const APP_VERSION = '0.2.1';
+const APP_VERSION = '0.2.2';
 
 // ---------- i18n ----------
 const I18N_STORAGE_LANG = 'oshitag:i18n:lang';
@@ -647,7 +647,7 @@ function btn(text, className, onClick) {
   return b;
 }
 
-function showPrompt({ title, placeholder, okText = '确定' }) {
+function showPrompt({ title, placeholder, okText = '确定', initialValue = '' }) {
   return new Promise((resolve) => {
     const wrap = document.createElement('div');
     wrap.className = 'field';
@@ -656,6 +656,7 @@ function showPrompt({ title, placeholder, okText = '确定' }) {
     input.className = 'input';
     input.placeholder = placeholder;
     input.autocomplete = 'off';
+    if (initialValue != null) input.value = String(initialValue);
 
     wrap.appendChild(input);
 
@@ -680,8 +681,121 @@ function showPrompt({ title, placeholder, okText = '确定' }) {
       btn(okText, 'btn', onOk)
     ]);
 
-    requestAnimationFrame(() => input.focus());
+    requestAnimationFrame(() => {
+      input.focus();
+      try {
+        const len = input.value.length;
+        input.setSelectionRange(len, len);
+      } catch {
+        // ignore
+      }
+    });
   });
+}
+
+async function renameGroup(groupId) {
+  const g = findGroup(groupId);
+  if (!g) return;
+  const name = await showPrompt({
+    title: t('prompt.groupRename.title') || '编辑组合名',
+    placeholder: t('prompt.groupRename.placeholder') || t('prompt.groupAdd.placeholder') || '组合名',
+    okText: t('modal.ok') || '确定',
+    initialValue: g.name
+  });
+  if (name == null) return;
+  const trimmed = String(name).trim();
+  if (!trimmed) return;
+  g.name = trimmed;
+  saveData();
+  render();
+}
+
+async function renameFavFolder(folderId) {
+  const f = findFav(folderId);
+  if (!f) return;
+  const name = await showPrompt({
+    title: t('prompt.favRename.title') || '编辑收藏夹名',
+    placeholder: t('prompt.favRename.placeholder') || t('prompt.favAdd.placeholder') || '收藏夹名称',
+    okText: t('modal.ok') || '确定',
+    initialValue: f.name
+  });
+  if (name == null) return;
+  const trimmed = String(name).trim();
+  if (!trimmed) return;
+  f.name = trimmed;
+  saveData();
+  render();
+}
+
+async function renameIdol(groupId, idolId) {
+  const g = findGroup(groupId);
+  const idol = g?.idols?.find((x) => x.id === idolId) || null;
+  if (!g || !idol) return;
+  const name = await showPrompt({
+    title: t('prompt.idolRename.title') || '编辑偶像名',
+    placeholder: t('prompt.idolRename.placeholder') || t('prompt.idolAdd.placeholder') || '偶像名',
+    okText: t('modal.ok') || '确定',
+    initialValue: idol.name
+  });
+  if (name == null) return;
+  const trimmed = String(name).trim();
+  if (!trimmed) return;
+  idol.name = trimmed;
+  saveData();
+  render();
+}
+
+async function renameIdolTag(groupId, idolId, tagId) {
+  const g = findGroup(groupId);
+  const idol = g?.idols?.find((x) => x.id === idolId) || null;
+  const tag = idol?.tags?.find((x) => x.id === tagId) || null;
+  if (!g || !idol || !tag) return;
+
+  const current = normalizeTagText(tag.text);
+  const v = await showPrompt({
+    title: t('prompt.tagRename.title') || '编辑TAG',
+    placeholder: t('prompt.tagRename.placeholder') || t('prompt.tagAdd.placeholder') || 'TAG',
+    okText: t('modal.ok') || '确定',
+    initialValue: current
+  });
+  if (v == null) return;
+
+  const next = normalizeTagText(v);
+  if (!next) return;
+
+  const nextKey = next.toLowerCase();
+  const conflict = idol.tags.some((x) => x.id !== tagId && normalizeTagText(x.text).toLowerCase() === nextKey);
+  if (conflict) return toast(t('toast.tagExists') || t('toast.favTagExists') || '已存在');
+
+  tag.text = next;
+  saveData();
+  render();
+}
+
+async function renameFavTag(folderId, tagId) {
+  const f = findFav(folderId);
+  const tag = f?.tags?.find((x) => x.id === tagId) || null;
+  if (!f || !tag) return;
+
+  const current = normalizeTagText(tag.text);
+  const v = await showPrompt({
+    title: t('prompt.tagRename.title') || '编辑TAG',
+    placeholder: t('prompt.tagRename.placeholder') || t('prompt.favTagAdd.title') || 'TAG',
+    okText: t('modal.ok') || '确定',
+    initialValue: current
+  });
+  if (v == null) return;
+
+  const next = normalizeTagText(v);
+  if (!next) return;
+
+  const nextKey = next.toLowerCase();
+  const conflict = f.tags.some((x) => x.id !== tagId && normalizeTagText(x.text).toLowerCase() === nextKey);
+  if (conflict) return toast(t('toast.tagExists') || t('toast.favTagExists') || '已存在');
+
+  tag.text = next;
+  saveData();
+  render();
 }
 
 function showCopyDialog({ title, text }) {
@@ -715,9 +829,138 @@ function showCopyDialog({ title, text }) {
   ]);
 
   requestAnimationFrame(() => {
+    // Keep focus for easy manual copy, but do NOT auto-select all (looks odd after long-press).
     textarea.focus();
-    textarea.select();
+    try {
+      const len = textarea.value.length;
+      textarea.setSelectionRange(len, len);
+    } catch {
+      // ignore
+    }
   });
+}
+
+function suppressNextClick() {
+  const onClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    document.removeEventListener('click', onClick, true);
+  };
+  document.addEventListener('click', onClick, true);
+}
+
+function reorderById(items, orderedIds) {
+  const map = new Map(items.map((it) => [it.id, it]));
+  const out = [];
+  for (const id of orderedIds) {
+    const it = map.get(id);
+    if (it) out.push(it);
+  }
+  // Keep any items that somehow weren't in the DOM order (safety)
+  for (const it of items) {
+    if (!orderedIds.includes(it.id)) out.push(it);
+  }
+  items.length = 0;
+  items.push(...out);
+}
+
+function enablePointerSort(container, {
+  itemSelector,
+  idAttr = 'data-sort-id',
+  canStart = () => true,
+  onReorder
+}) {
+  if (!container) return;
+
+  let pointerId = null;
+  let draggingEl = null;
+  let startX = 0;
+  let startY = 0;
+  let didDrag = false;
+
+  const getItem = (el) => el?.closest?.(itemSelector) || null;
+  const getId = (el) => el?.getAttribute?.(idAttr) || '';
+
+  const reset = () => {
+    if (draggingEl) draggingEl.classList.remove('is-dragging');
+    container.classList.remove('is-sorting');
+    pointerId = null;
+    draggingEl = null;
+    didDrag = false;
+  };
+
+  const onPointerDown = (e) => {
+    if (!isEditMode()) return;
+    if (e.button != null && e.button !== 0) return;
+    if (!canStart(e)) return;
+
+    const item = getItem(e.target);
+    if (!item) return;
+    if (!getId(item)) return;
+
+    pointerId = e.pointerId;
+    draggingEl = item;
+    startX = e.clientX;
+    startY = e.clientY;
+    didDrag = false;
+    container.setPointerCapture?.(pointerId);
+  };
+
+  const onPointerMove = (e) => {
+    if (pointerId == null || e.pointerId !== pointerId || !draggingEl) return;
+
+    const dx = Math.abs(e.clientX - startX);
+    const dy = Math.abs(e.clientY - startY);
+    if (!didDrag) {
+      if (dx + dy < 8) return;
+      didDrag = true;
+      container.classList.add('is-sorting');
+      draggingEl.classList.add('is-dragging');
+    }
+
+    e.preventDefault();
+
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const over = getItem(el);
+    if (!over || over === draggingEl) return;
+    if (!getId(over)) return;
+
+    const all = Array.from(container.querySelectorAll(itemSelector));
+    const from = all.indexOf(draggingEl);
+    const to = all.indexOf(over);
+    if (from === -1 || to === -1) return;
+
+    if (to > from) {
+      container.insertBefore(draggingEl, over.nextSibling);
+    } else {
+      container.insertBefore(draggingEl, over);
+    }
+  };
+
+  const onPointerUp = (e) => {
+    if (pointerId == null || e.pointerId !== pointerId) return;
+    const wasDrag = didDrag;
+
+    if (wasDrag) {
+      const ids = Array.from(container.querySelectorAll(itemSelector))
+        .map((el) => getId(el))
+        .filter(Boolean);
+      if (typeof onReorder === 'function') onReorder(ids);
+      suppressNextClick();
+    }
+
+    reset();
+  };
+
+  const onPointerCancel = (e) => {
+    if (pointerId == null || e.pointerId !== pointerId) return;
+    reset();
+  };
+
+  container.addEventListener('pointerdown', onPointerDown);
+  container.addEventListener('pointermove', onPointerMove);
+  container.addEventListener('pointerup', onPointerUp);
+  container.addEventListener('pointercancel', onPointerCancel);
 }
 
 function showConfirm({ title, message, okText }) {
@@ -1049,8 +1292,40 @@ function deleteFavTag(folderId, tagId) {
 }
 
 // ---------- Render ----------
-function renderTabs(rootEl, items, activeId, { onSelect, onAdd, onDelete, emptyEmoji }) {
+function renderTabs(rootEl, items, activeId, { onSelect, onAdd, onDelete, onRename, emptyEmoji }) {
   rootEl.innerHTML = '';
+
+  // Sortable tabs (edit mode only)
+  if (!rootEl._oshitagSortableTabs) {
+    rootEl._oshitagSortableTabs = true;
+    enablePointerSort(rootEl, {
+      itemSelector: '.tab[data-sort-id]',
+      canStart: (e) => {
+        // Drag only via handle
+        const handle = e.target.closest?.('.drag-handle');
+        if (!handle) return false;
+        // Avoid dragging the plus button / empty-plus
+        const item = handle.closest?.('.tab');
+        if (!item) return false;
+        if (item.classList.contains('plus') || item.classList.contains('empty-plus')) return false;
+        return true;
+      },
+      onReorder: (ids) => {
+        // Decide which array to reorder by comparing ids.
+        const set = new Set(ids);
+        const groupIds = new Set(state.data.groups.map((g) => g.id));
+        const favIds = new Set(state.data.favorites.map((f) => f.id));
+        const isGroupTabs = ids.length && Array.from(set).every((id) => groupIds.has(id));
+        const isFavTabs = ids.length && Array.from(set).every((id) => favIds.has(id));
+        if (isGroupTabs) reorderById(state.data.groups, ids);
+        if (isFavTabs) reorderById(state.data.favorites, ids);
+        if (isGroupTabs || isFavTabs) {
+          saveData();
+          render();
+        }
+      }
+    });
+  }
 
   const editMode = isEditMode();
 
@@ -1069,9 +1344,29 @@ function renderTabs(rootEl, items, activeId, { onSelect, onAdd, onDelete, emptyE
   for (const it of items) {
     const t = document.createElement('div');
     t.className = 'tab' + (it.id === activeId ? ' active' : '');
-    t.textContent = it.name;
+    const handle = document.createElement('span');
+    handle.className = 'drag-handle';
+    handle.setAttribute('aria-hidden', 'true');
+    handle.textContent = '≡';
+
+    const label = document.createElement('span');
+    label.className = 'tab-label';
+    label.textContent = it.name;
+
+    t.appendChild(handle);
+    t.appendChild(label);
+    t.setAttribute('data-sort-id', it.id);
     let lp = null;
-    if (typeof onSelect?.onLongPress === 'function') {
+    if (editMode && typeof onRename === 'function') {
+      lp = attachLongPress(t, {
+        onLongPress: (e) => {
+          if (e?.target?.closest?.('.drag-handle')) return;
+          onRename(it.id);
+        },
+        ms: 520,
+        moveTolerance: 10
+      });
+    } else if (!editMode && typeof onSelect?.onLongPress === 'function') {
       lp = attachLongPress(t, {
         onLongPress: () => onSelect.onLongPress(it.id),
         ms: 520,
@@ -1117,6 +1412,7 @@ function renderGroupStage() {
   const card = document.createElement('div');
   card.className = 'big-card';
   card.addEventListener('click', (e) => {
+    if (isEditMode()) return;
     if (e.target.closest('.idol-card, .tag, .color-dot')) return;
     const tags = [];
     for (const idol of g.idols) tags.push(...idol.tags);
@@ -1125,6 +1421,25 @@ function renderGroupStage() {
 
   const grid = document.createElement('div');
   grid.className = 'idol-grid';
+
+  if (!grid._oshitagSortableIdols) {
+    grid._oshitagSortableIdols = true;
+    enablePointerSort(grid, {
+      itemSelector: '.idol-card[data-sort-id]',
+      canStart: (e) => {
+        // Drag only via handle
+        if (!e.target.closest?.('.drag-handle')) return false;
+        return true;
+      },
+      onReorder: (ids) => {
+        const g2 = activeGroup();
+        if (!g2) return;
+        reorderById(g2.idols, ids);
+        saveData();
+        render();
+      }
+    });
+  }
 
   for (const idol of g.idols) {
     grid.appendChild(renderIdolCard(g, idol));
@@ -1149,12 +1464,18 @@ function renderGroupStage() {
 function renderIdolCard(group, idol) {
   const card = document.createElement('div');
   card.className = 'idol-card';
+  card.setAttribute('data-sort-id', idol.id);
 
   const head = document.createElement('div');
   head.className = 'idol-head';
 
   const left = document.createElement('div');
   left.className = 'idol-name';
+
+  const handle = document.createElement('span');
+  handle.className = 'drag-handle';
+  handle.setAttribute('aria-hidden', 'true');
+  handle.textContent = '≡';
 
   const dot = document.createElement('div');
   dot.className = 'color-dot';
@@ -1181,21 +1502,93 @@ function renderIdolCard(group, idol) {
   left.appendChild(dot);
   left.appendChild(name);
 
+  left.insertBefore(handle, dot);
+
   head.appendChild(left);
 
-  head.addEventListener('click', () => copyText(idol.name, idol.tags));
+  let lp = null;
+  if (isEditMode()) {
+    lp = attachLongPress(head, {
+      onLongPress: (e) => {
+        if (e?.target?.closest?.('.drag-handle')) return;
+        renameIdol(group.id, idol.id);
+      },
+      ms: 520,
+      moveTolerance: 10
+    });
+  }
+
+  head.addEventListener('click', () => {
+    if (lp?.wasFired()) {
+      lp.reset();
+      return;
+    }
+    if (isEditMode()) return;
+    copyText(idol.name, idol.tags);
+  });
   if (isEditMode()) head.addEventListener('dblclick', () => deleteIdol(group.id, idol.id));
 
   const tags = document.createElement('div');
   tags.className = 'tag-grid';
 
+  if (!tags._oshitagSortableTags) {
+    tags._oshitagSortableTags = true;
+    enablePointerSort(tags, {
+      itemSelector: '.tag[data-sort-id]',
+      canStart: (e) => {
+        // Drag only via handle
+        if (!e.target.closest?.('.drag-handle')) return false;
+        const chip = e.target.closest?.('.tag');
+        if (!chip) return false;
+        if (chip.classList.contains('plus')) return false;
+        return true;
+      },
+      onReorder: (ids) => {
+        const g2 = findGroup(group.id);
+        const idol2 = g2?.idols?.find((x) => x.id === idol.id);
+        if (!idol2) return;
+        reorderById(idol2.tags, ids);
+        saveData();
+        render();
+      }
+    });
+  }
+
   for (const t of idol.tags) {
     const chip = document.createElement('div');
     chip.className = 'tag';
-    chip.textContent = normalizeTagText(t.text);
+    const tagText = normalizeTagText(t.text);
+    const h = document.createElement('span');
+    h.className = 'drag-handle';
+    h.setAttribute('aria-hidden', 'true');
+    h.textContent = '≡';
+    const lbl = document.createElement('span');
+    lbl.className = 'tag-label';
+    lbl.textContent = tagText;
+    chip.appendChild(h);
+    chip.appendChild(lbl);
+    chip.setAttribute('data-sort-id', t.id);
+
+    let lp = null;
+    if (isEditMode()) {
+      lp = attachLongPress(chip, {
+        onLongPress: (e) => {
+          if (e?.target?.closest?.('.drag-handle')) return;
+          renameIdolTag(group.id, idol.id, t.id);
+        },
+        ms: 520,
+        moveTolerance: 10
+      });
+    }
+
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
-      copyText(chip.textContent, [chip.textContent]);
+      if (lp?.wasFired()) {
+        lp.reset();
+        return;
+      }
+      if (isEditMode()) return;
+      copyText(tagText, [tagText]);
     });
     if (isEditMode()) {
       chip.addEventListener('dblclick', (e) => {
@@ -1241,6 +1634,7 @@ function renderFavoritesStage() {
   const card = document.createElement('div');
   card.className = 'big-card';
   card.addEventListener('click', (e) => {
+    if (isEditMode()) return;
     if (e.target.closest('.tag')) return;
     copyText(f.name, f.tags);
   });
@@ -1248,13 +1642,63 @@ function renderFavoritesStage() {
   const tags = document.createElement('div');
   tags.className = 'tag-grid';
 
+  if (!tags._oshitagSortableFavTags) {
+    tags._oshitagSortableFavTags = true;
+    enablePointerSort(tags, {
+      itemSelector: '.tag[data-sort-id]',
+      canStart: (e) => {
+        // Drag only via handle
+        if (!e.target.closest?.('.drag-handle')) return false;
+        const chip = e.target.closest?.('.tag');
+        if (!chip) return false;
+        if (chip.classList.contains('plus')) return false;
+        return true;
+      },
+      onReorder: (ids) => {
+        const f2 = activeFav();
+        if (!f2) return;
+        reorderById(f2.tags, ids);
+        saveData();
+        render();
+      }
+    });
+  }
+
   for (const t of f.tags) {
     const chip = document.createElement('div');
     chip.className = 'tag';
-    chip.textContent = normalizeTagText(t.text);
+    const tagText = normalizeTagText(t.text);
+    const h = document.createElement('span');
+    h.className = 'drag-handle';
+    h.setAttribute('aria-hidden', 'true');
+    h.textContent = '≡';
+    const lbl = document.createElement('span');
+    lbl.className = 'tag-label';
+    lbl.textContent = tagText;
+    chip.appendChild(h);
+    chip.appendChild(lbl);
+    chip.setAttribute('data-sort-id', t.id);
+
+    let lp = null;
+    if (isEditMode()) {
+      lp = attachLongPress(chip, {
+        onLongPress: (e) => {
+          if (e?.target?.closest?.('.drag-handle')) return;
+          renameFavTag(f.id, t.id);
+        },
+        ms: 520,
+        moveTolerance: 10
+      });
+    }
+
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
-      copyText(chip.textContent, [chip.textContent]);
+      if (lp?.wasFired()) {
+        lp.reset();
+        return;
+      }
+      if (isEditMode()) return;
+      copyText(tagText, [tagText]);
     });
     if (isEditMode()) {
       chip.addEventListener('dblclick', (e) => {
@@ -1318,6 +1762,7 @@ function render() {
   renderTabs($('#groupTabs'), state.data.groups, activeGroup()?.id || null, {
     onSelect: groupOnSelect,
     onAdd: addGroup,
+    onRename: renameGroup,
     onDelete: deleteGroup,
     emptyEmoji: '➕'
   });
@@ -1325,6 +1770,7 @@ function render() {
   renderTabs($('#favTabs'), state.data.favorites, activeFav()?.id || null, {
     onSelect: favOnSelect,
     onAdd: addFavFolder,
+    onRename: renameFavFolder,
     onDelete: deleteFavFolder,
     emptyEmoji: '➕'
   });

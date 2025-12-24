@@ -7,7 +7,7 @@
   "background_color": "#0b1020",
   "theme_color": "#111827",
   "description": "组合-偶像-TAG 管理：单击复制、双击删除；支持收藏夹、导入/导出与多语言。",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "icons": [
     {
       "src": "./assets/icons/icon.svg",

@@ -35,6 +35,7 @@
   "prompt.favTagAdd.ok": "Add",
   "toast.favTagAdded": "Added",
   "toast.favTagExists": "Already exists",
+  "toast.tagExists": "Tag already exists",
   "toast.mdImported": "Imported",
   "toast.hexInvalid": "Please enter HEX like #39c5bb",
 
@@ -48,21 +49,31 @@
 
   "help.section.groups": "Groups (tabs)",
   "help.groups.switch": "Tap: switch",
-  "help.groups.longPressCopy": "Long-press: copy all tags in this group",
-  "help.groups.edit": "Edit mode: shows “＋” and enables add/double-tap delete",
+  "help.groups.longPressCopy": "Browse: long-press to copy all tags in this group",
+  "help.groups.edit": "Edit: copying disabled; long-press to rename; hold ≡ to drag-sort; shows “＋” and enables add/double-tap delete",
 
   "help.section.idols": "Idols",
-  "help.idols.copy": "Tap idol name: copy all tags",
-  "help.idols.edit": "Edit mode: double-tap to delete; tap color dot to change; tap “+” to add tags",
+  "help.idols.copy": "Browse: tap idol name to copy all tags",
+  "help.idols.edit": "Edit: copying disabled; long-press to rename; hold ≡ to drag-sort; double-tap to delete; tap color dot to change; tap “+” to add tags",
 
   "help.section.tags": "Tags",
-  "help.tags.copy": "Tap tag: copy",
-  "help.tags.edit": "Edit mode: double-tap tag to delete",
+  "help.tags.copy": "Browse: tap tag to copy",
+  "help.tags.edit": "Edit: copying disabled; long-press to rename; hold ≡ to drag-sort; double-tap tag to delete",
 
   "help.section.favorites": "Favorites",
   "help.favorites.about": "Two levels: folder → tags",
-  "help.favorites.copy": "Tap blank area: copy all tags",
-  "help.favorites.edit": "Edit mode: shows “+” to add; double-tap tag to delete",
+  "help.favorites.copy": "Browse: tap blank area to copy all tags; long-press folder name to copy",
+  "help.favorites.edit": "Edit: copying disabled; long-press folder name to rename; hold ≡ to drag-sort; shows “+” to add; double-tap tag to delete",
+
+  "prompt.groupRename.title": "Rename group",
+  "prompt.groupRename.placeholder": "Group name",
+  "prompt.favRename.title": "Rename folder",
+  "prompt.favRename.placeholder": "Folder name",
+  "prompt.idolRename.title": "Rename idol",
+  "prompt.idolRename.placeholder": "Idol name",
+
+  "prompt.tagRename.title": "Rename tag",
+  "prompt.tagRename.placeholder": "Tag (e.g. #abc or abc)",
 
   "add.title": "Add",
   "add.idol": "Add idol",

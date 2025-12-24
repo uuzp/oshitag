@@ -36,6 +36,7 @@
   "prompt.favTagAdd.ok": "추가",
   "toast.favTagAdded": "추가됨",
   "toast.favTagExists": "이미 있음",
+  "toast.tagExists": "이미 있는 태그입니다",
   "toast.mdImported": "가져옴",
   "toast.hexInvalid": "#39c5bb 같은 HEX를 입력하세요",
 
@@ -49,21 +50,31 @@
 
   "help.section.groups": "그룹(탭)",
   "help.groups.switch": "탭: 전환",
-  "help.groups.longPressCopy": "길게 누르기: 이 그룹의 모든 태그 복사",
-  "help.groups.edit": "편집 모드: ‘＋’ 표시, 더블탭 삭제",
+  "help.groups.longPressCopy": "보기: 길게 눌러 이 그룹의 모든 태그 복사",
+  "help.groups.edit": "편집: 복사 비활성화; 길게 눌러 이름 변경; ≡를 누르고 드래그 정렬; ‘＋’ 표시/더블탭 삭제",
 
   "help.section.idols": "아이돌",
-  "help.idols.copy": "이름 탭: 모든 태그 복사",
-  "help.idols.edit": "편집 모드: 더블탭 삭제, 색상 점 탭 변경, +로 태그 추가",
+  "help.idols.copy": "보기: 이름 탭으로 모든 태그 복사",
+  "help.idols.edit": "편집: 복사 비활성화; 길게 눌러 이름 변경; ≡를 누르고 드래그 정렬; 더블탭 삭제; 색상 점 탭 변경; +로 태그 추가",
 
   "help.section.tags": "태그",
-  "help.tags.copy": "탭: 복사",
-  "help.tags.edit": "편집 모드: 더블탭 삭제",
+  "help.tags.copy": "보기: 탭으로 복사",
+  "help.tags.edit": "편집: 복사 비활성화; 길게 눌러 이름 변경; ≡를 누르고 드래그 정렬; 더블탭 삭제",
 
   "help.section.favorites": "즐겨찾기",
   "help.favorites.about": "2단계: 폴더 → 태그",
-  "help.favorites.copy": "빈 영역 탭: 모든 태그 복사",
-  "help.favorites.edit": "편집 모드: +로 추가, 더블탭 삭제",
+  "help.favorites.copy": "보기: 빈 영역 탭으로 모든 태그 복사; 폴더명은 길게 눌러 복사",
+  "help.favorites.edit": "편집: 복사 비활성화; 폴더명을 길게 눌러 이름 변경; ≡를 누르고 드래그 정렬; +로 추가; 더블탭 삭제",
+
+  "prompt.groupRename.title": "그룹 이름 변경",
+  "prompt.groupRename.placeholder": "그룹 이름",
+  "prompt.favRename.title": "폴더 이름 변경",
+  "prompt.favRename.placeholder": "폴더 이름",
+  "prompt.idolRename.title": "아이돌 이름 변경",
+  "prompt.idolRename.placeholder": "아이돌 이름",
+
+  "prompt.tagRename.title": "태그 이름 변경",
+  "prompt.tagRename.placeholder": "태그(예: #abc 또는 abc)",
 
   "add.title": "추가",
   "add.idol": "아이돌 추가",

@@ -36,6 +36,7 @@
   "prompt.favTagAdd.ok": "添加",
   "toast.favTagAdded": "已添加到收藏夹",
   "toast.favTagExists": "收藏夹里已经有这个TAG",
+  "toast.tagExists": "已经有这个TAG",
   "toast.mdImported": "已导入",
   "toast.hexInvalid": "请输入形如 #39c5bb 的HEX颜色",
 
@@ -49,21 +50,31 @@
 
   "help.section.groups": "组合（顶部标签页）",
   "help.groups.switch": "单击：切换",
-  "help.groups.longPressCopy": "长按：复制该组合内所有TAG",
-  "help.groups.edit": "编辑模式：显示“＋”并允许新增/双击删除",
+  "help.groups.longPressCopy": "浏览模式：长按复制该组合内所有TAG",
+  "help.groups.edit": "编辑模式：禁用复制；长按编辑名称；按住≡可拖拽排序；显示“＋”并允许新增/双击删除",
 
   "help.section.idols": "偶像",
-  "help.idols.copy": "单击偶像名：复制该偶像全部TAG",
-  "help.idols.edit": "编辑模式：双击偶像名删除；点颜色圆点改色；点“+”新增TAG",
+  "help.idols.copy": "浏览模式：单击偶像名复制该偶像全部TAG",
+  "help.idols.edit": "编辑模式：禁用复制；长按偶像名编辑名称；按住≡可拖拽排序；双击删除；点颜色圆点改色；点“+”新增TAG",
 
   "help.section.tags": "TAG",
-  "help.tags.copy": "单击TAG：复制该TAG",
-  "help.tags.edit": "编辑模式：双击TAG删除",
+  "help.tags.copy": "浏览模式：单击TAG复制",
+  "help.tags.edit": "编辑模式：禁用复制；长按TAG编辑名称；按住≡可拖拽排序；双击TAG删除",
 
   "help.section.favorites": "收藏夹",
   "help.favorites.about": "两层结构：收藏夹 → TAG",
-  "help.favorites.copy": "单击收藏夹大矩形空白处：复制该收藏夹全部TAG",
-  "help.favorites.edit": "编辑模式：显示“+”新增TAG；双击TAG删除",
+  "help.favorites.copy": "浏览模式：单击收藏夹大矩形空白处复制全部TAG；长按收藏夹名称可复制",
+  "help.favorites.edit": "编辑模式：禁用复制；长按收藏夹名称编辑名称；按住≡可拖拽排序；显示“+”新增TAG；双击TAG删除",
+
+  "prompt.groupRename.title": "编辑组合名",
+  "prompt.groupRename.placeholder": "组合名",
+  "prompt.favRename.title": "编辑收藏夹名",
+  "prompt.favRename.placeholder": "收藏夹名称",
+  "prompt.idolRename.title": "编辑偶像名",
+  "prompt.idolRename.placeholder": "偶像名",
+
+  "prompt.tagRename.title": "编辑TAG",
+  "prompt.tagRename.placeholder": "TAG（例如 #abc 或 abc）",
 
   "add.title": "新增",
   "add.idol": "新增偶像",

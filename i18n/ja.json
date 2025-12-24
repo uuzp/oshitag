@@ -36,6 +36,7 @@
   "prompt.favTagAdd.ok": "追加",
   "toast.favTagAdded": "追加しました",
   "toast.favTagExists": "すでに存在します",
+  "toast.tagExists": "そのタグはすでにあります",
   "toast.mdImported": "インポートしました",
   "toast.hexInvalid": "#39c5bb のようなHEXを入力してください",
 
@@ -49,21 +50,31 @@
 
   "help.section.groups": "グループ（タブ）",
   "help.groups.switch": "タップ：切り替え",
-  "help.groups.longPressCopy": "長押し：このグループの全タグをコピー",
-  "help.groups.edit": "編集モード：＋表示、ダブルタップ削除",
+  "help.groups.longPressCopy": "閲覧：長押しでこのグループの全タグをコピー",
+  "help.groups.edit": "編集：コピー無効／長押しで名前編集／≡を押して並べ替え／＋表示・ダブルタップ削除",
 
   "help.section.idols": "アイドル",
-  "help.idols.copy": "名前をタップ：全タグをコピー",
-  "help.idols.edit": "編集モード：ダブルタップで削除、色点で変更、＋でタグ追加",
+  "help.idols.copy": "閲覧：名前タップで全タグをコピー",
+  "help.idols.edit": "編集：コピー無効／長押しで名前編集／≡を押して並べ替え／ダブルタップ削除／色点で変更／＋で追加",
 
   "help.section.tags": "タグ",
-  "help.tags.copy": "タップ：コピー",
-  "help.tags.edit": "編集モード：ダブルタップで削除",
+  "help.tags.copy": "閲覧：タップでコピー",
+  "help.tags.edit": "編集：コピー無効／長押しで名前編集／≡を押して並べ替え／ダブルタップで削除",
 
   "help.section.favorites": "お気に入り",
   "help.favorites.about": "2階層：フォルダ → タグ",
-  "help.favorites.copy": "空白をタップ：全タグをコピー",
-  "help.favorites.edit": "編集モード：＋で追加、ダブルタップで削除",
+  "help.favorites.copy": "閲覧：空白タップで全タグをコピー／フォルダ名は長押しでコピー",
+  "help.favorites.edit": "編集：コピー無効／フォルダ名を長押しで名前編集／≡を押して並べ替え／＋で追加／ダブルタップで削除",
+
+  "prompt.groupRename.title": "グループ名を編集",
+  "prompt.groupRename.placeholder": "グループ名",
+  "prompt.favRename.title": "フォルダ名を編集",
+  "prompt.favRename.placeholder": "フォルダ名",
+  "prompt.idolRename.title": "アイドル名を編集",
+  "prompt.idolRename.placeholder": "アイドル名",
+
+  "prompt.tagRename.title": "タグ名を編集",
+  "prompt.tagRename.placeholder": "タグ（例：#abc / abc）",
 
   "add.title": "追加",
   "add.idol": "アイドルを追加",
