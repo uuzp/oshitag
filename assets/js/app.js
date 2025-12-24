@@ -1571,16 +1571,23 @@ function renderIdolCard(group, idol) {
 
   head.appendChild(left);
 
+  // Manual double-click tracking (survives re-renders, no browser dblclick dependency).
+  let lastClickTime = 0;
+  const DBLCLICK_THRESHOLD_MS = 400;
+
   head.addEventListener('click', () => {
+    const now = Date.now();
+    const isDoubleClick = (now - lastClickTime) < DBLCLICK_THRESHOLD_MS;
+    lastClickTime = now;
+
+    if (isEditMode() && isDoubleClick) {
+      cancelRename();
+      return deleteIdol(group.id, idol.id);
+    }
+
     if (isEditMode()) return scheduleRename();
     copyText(idol.name, idol.tags);
   });
-  if (isEditMode()) {
-    head.addEventListener('dblclick', () => {
-      cancelRename();
-      deleteIdol(group.id, idol.id);
-    });
-  }
 
   const tags = document.createElement('div');
   tags.className = 'tag-grid';
@@ -1628,18 +1635,25 @@ function renderIdolCard(group, idol) {
       renameTimer = null;
     };
 
+    // Manual double-click tracking (survives re-renders).
+    let lastClickTime = 0;
+    const DBLCLICK_THRESHOLD_MS = 400;
+
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
+
+      const now = Date.now();
+      const isDoubleClick = (now - lastClickTime) < DBLCLICK_THRESHOLD_MS;
+      lastClickTime = now;
+
+      if (isEditMode() && isDoubleClick) {
+        cancelRename();
+        return deleteTag(group.id, idol.id, t.id);
+      }
+
       if (isEditMode()) return scheduleRename();
       copyText(tagText, [tagText]);
     });
-    if (isEditMode()) {
-      chip.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        cancelRename();
-        deleteTag(group.id, idol.id, t.id);
-      });
-    }
     tags.appendChild(chip);
   }
 
@@ -1727,18 +1741,25 @@ function renderFavoritesStage() {
       if (renameTimer) clearTimeout(renameTimer);
       renameTimer = null;
     };
+    // Manual double-click tracking (survives re-renders).
+    let lastClickTime = 0;
+    const DBLCLICK_THRESHOLD_MS = 400;
+
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
+
+      const now = Date.now();
+      const isDoubleClick = (now - lastClickTime) < DBLCLICK_THRESHOLD_MS;
+      lastClickTime = now;
+
+      if (isEditMode() && isDoubleClick) {
+        cancelRename();
+        return deleteFavTag(f.id, t.id);
+      }
+
       if (isEditMode()) return scheduleRename();
       copyText(tagText, [tagText]);
     });
-    if (isEditMode()) {
-      chip.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        cancelRename();
-        deleteFavTag(f.id, t.id);
-      });
-    }
     tags.appendChild(chip);
   }
 
