@@ -913,6 +913,11 @@ function enablePointerSort(container, {
     if (!item) return;
     if (!getId(item)) return;
 
+    // Prevent default on touch to avoid scroll interference.
+    if (e.pointerType === 'touch') {
+      e.preventDefault();
+    }
+
     pointerId = e.pointerId;
     draggingEl = item;
     startX = e.clientX;
@@ -927,7 +932,7 @@ function enablePointerSort(container, {
     const dx = Math.abs(e.clientX - startX);
     const dy = Math.abs(e.clientY - startY);
     if (!didDrag) {
-      if (dx + dy < 8) return;
+      if (dx + dy < 5) return;
       didDrag = true;
       container.classList.add('is-sorting');
       draggingEl.classList.add('is-dragging');
@@ -1351,6 +1356,13 @@ function renderTabs(rootEl, items, activeId, { onSelect, onAdd, onDelete, onRena
   const canRename = editMode && typeof onRename === 'function';
   const RENAME_DELAY_MS = 320;
 
+  // Manual double-click tracking (survives DOM re-renders, unlike browser dblclick).
+  if (!rootEl._oshitagClickTracker) {
+    rootEl._oshitagClickTracker = { lastId: null, lastTime: 0 };
+  }
+  const clickTracker = rootEl._oshitagClickTracker;
+  const DBLCLICK_THRESHOLD_MS = 400;
+
   if (rootEl._oshitagRenameTimer) {
     clearTimeout(rootEl._oshitagRenameTimer);
     rootEl._oshitagRenameTimer = null;
@@ -1375,13 +1387,40 @@ function renderTabs(rootEl, items, activeId, { onSelect, onAdd, onDelete, onRena
     t.setAttribute('data-sort-id', it.id);
 
     // Browse vs Edit are fully separated:
-    // - Browse: dblclick copies
-    // - Edit: dblclick deletes; drag-sort enabled
+    // - Browse: click switches (immediate), double-click copies
+    // - Edit: click active -> rename after delay; click other -> switch; dblclick deletes
 
     t.addEventListener('click', () => {
-      // Edit mode: click ACTIVE tab -> delayed rename (drag/dblclick cancels)
-      // Edit mode: click other tabs -> switch immediately
-      // Browse mode: click -> switch
+      const now = Date.now();
+      const isDoubleClick = 
+        clickTracker.lastId === it.id && 
+        (now - clickTracker.lastTime) < DBLCLICK_THRESHOLD_MS;
+
+      clickTracker.lastId = it.id;
+      clickTracker.lastTime = now;
+
+      // Browse mode: double-click -> copy (no switch)
+      if (!editMode && isDoubleClick) {
+        if (typeof onSelect?.onDblClick === 'function') {
+          return onSelect.onDblClick(it.id);
+        }
+      }
+
+      // Browse mode: single click -> switch immediately
+      if (!editMode) {
+        return onSelect(it.id);
+      }
+
+      // Edit mode: double-click -> delete
+      if (editMode && isDoubleClick) {
+        if (rootEl._oshitagRenameTimer) {
+          clearTimeout(rootEl._oshitagRenameTimer);
+          rootEl._oshitagRenameTimer = null;
+        }
+        return onDelete(it.id);
+      }
+
+      // Edit mode: click ACTIVE tab -> delayed rename
       if (canRename && it.id === activeId) {
         if (rootEl._oshitagRenameTimer) clearTimeout(rootEl._oshitagRenameTimer);
         rootEl._oshitagRenameTimer = setTimeout(() => {
@@ -1393,16 +1432,9 @@ function renderTabs(rootEl, items, activeId, { onSelect, onAdd, onDelete, onRena
         }, RENAME_DELAY_MS);
         return;
       }
-      onSelect(it.id);
-    });
 
-    t.addEventListener('dblclick', () => {
-      if (rootEl._oshitagRenameTimer) {
-        clearTimeout(rootEl._oshitagRenameTimer);
-        rootEl._oshitagRenameTimer = null;
-      }
-      if (editMode) return onDelete(it.id);
-      if (typeof onSelect?.onDblClick === 'function') return onSelect.onDblClick(it.id);
+      // Edit mode: click other tabs -> switch immediately
+      onSelect(it.id);
     });
 
     rootEl.appendChild(t);

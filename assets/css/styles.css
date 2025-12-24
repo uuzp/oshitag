@@ -270,8 +270,19 @@ body:not(.edit-on) .tag.plus {
 }
 
 .is-dragging {
-  opacity: 0.65;
+  opacity: 0.85;
   border-color: var(--focus) !important;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(96,165,250,0.35);
+  z-index: 100;
+  position: relative;
+}
+
+/* Ensure drag targets don't interfere with browser touch gestures */
+body.edit-on .tab,
+body.edit-on .idol-card,
+body.edit-on .tag {
+  touch-action: none;
 }
 
 .toast {
