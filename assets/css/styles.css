@@ -139,9 +139,6 @@ body.edit-on .btn-edit {
 
 .tab {
   flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
   border: 1px solid rgba(255,255,255,0.14);
   background: rgba(255,255,255,0.04);
   color: var(--text);
@@ -153,25 +150,6 @@ body.edit-on .btn-edit {
   user-select: none;
   touch-action: manipulation;
 }
-
-.drag-handle {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(255,255,255,0.04);
-  font-size: 12px;
-  line-height: 1;
-  opacity: 0.85;
-  cursor: grab;
-  flex: 0 0 auto;
-  touch-action: none;
-}
-
-body.edit-on .drag-handle { display: inline-flex; }
 
 .tab.active {
   border-color: rgba(96,165,250,0.55);
@@ -278,9 +256,6 @@ body:not(.edit-on) .tag.plus {
   font-size: 12px;
   cursor: pointer;
   user-select: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .tag.plus {

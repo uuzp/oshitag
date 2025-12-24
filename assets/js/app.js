@@ -571,8 +571,14 @@ async function copyText(label, tags) {
 
   openModal(t('toast.copyFailed') || '复制失败', wrap, [btn(t('modal.gotIt') || '知道了', 'btn', closeModal)]);
   requestAnimationFrame(() => {
+    // Do not auto-select all: it looks odd and can fight user selection.
     textarea.focus();
-    textarea.select();
+    try {
+      const len = textarea.value.length;
+      textarea.setSelectionRange(len, len);
+    } catch {
+      // ignore
+    }
   });
 }
 
@@ -877,6 +883,7 @@ function enablePointerSort(container, {
   let startX = 0;
   let startY = 0;
   let didDrag = false;
+  let didCapture = false;
 
   const getItem = (el) => el?.closest?.(itemSelector) || null;
   const getId = (el) => el?.getAttribute?.(idAttr) || '';
@@ -884,9 +891,17 @@ function enablePointerSort(container, {
   const reset = () => {
     if (draggingEl) draggingEl.classList.remove('is-dragging');
     container.classList.remove('is-sorting');
+    if (didCapture && pointerId != null) {
+      try {
+        container.releasePointerCapture?.(pointerId);
+      } catch {
+        // ignore
+      }
+    }
     pointerId = null;
     draggingEl = null;
     didDrag = false;
+    didCapture = false;
   };
 
   const onPointerDown = (e) => {
@@ -903,7 +918,7 @@ function enablePointerSort(container, {
     startX = e.clientX;
     startY = e.clientY;
     didDrag = false;
-    container.setPointerCapture?.(pointerId);
+    didCapture = false;
   };
 
   const onPointerMove = (e) => {
@@ -916,6 +931,14 @@ function enablePointerSort(container, {
       didDrag = true;
       container.classList.add('is-sorting');
       draggingEl.classList.add('is-dragging');
+
+      // Capture only after drag starts; otherwise desktop clicks can be swallowed.
+      try {
+        container.setPointerCapture?.(pointerId);
+        didCapture = true;
+      } catch {
+        didCapture = false;
+      }
     }
 
     e.preventDefault();
@@ -1301,11 +1324,8 @@ function renderTabs(rootEl, items, activeId, { onSelect, onAdd, onDelete, onRena
     enablePointerSort(rootEl, {
       itemSelector: '.tab[data-sort-id]',
       canStart: (e) => {
-        // Drag only via handle
-        const handle = e.target.closest?.('.drag-handle');
-        if (!handle) return false;
         // Avoid dragging the plus button / empty-plus
-        const item = handle.closest?.('.tab');
+        const item = e.target.closest?.('.tab');
         if (!item) return false;
         if (item.classList.contains('plus') || item.classList.contains('empty-plus')) return false;
         return true;
@@ -1328,6 +1348,13 @@ function renderTabs(rootEl, items, activeId, { onSelect, onAdd, onDelete, onRena
   }
 
   const editMode = isEditMode();
+  const canRename = editMode && typeof onRename === 'function';
+  const RENAME_DELAY_MS = 320;
+
+  if (rootEl._oshitagRenameTimer) {
+    clearTimeout(rootEl._oshitagRenameTimer);
+    rootEl._oshitagRenameTimer = null;
+  }
 
   if (items.length === 0) {
     if (editMode) {
@@ -1344,44 +1371,40 @@ function renderTabs(rootEl, items, activeId, { onSelect, onAdd, onDelete, onRena
   for (const it of items) {
     const t = document.createElement('div');
     t.className = 'tab' + (it.id === activeId ? ' active' : '');
-    const handle = document.createElement('span');
-    handle.className = 'drag-handle';
-    handle.setAttribute('aria-hidden', 'true');
-    handle.textContent = '≡';
-
-    const label = document.createElement('span');
-    label.className = 'tab-label';
-    label.textContent = it.name;
-
-    t.appendChild(handle);
-    t.appendChild(label);
+    t.textContent = it.name;
     t.setAttribute('data-sort-id', it.id);
-    let lp = null;
-    if (editMode && typeof onRename === 'function') {
-      lp = attachLongPress(t, {
-        onLongPress: (e) => {
-          if (e?.target?.closest?.('.drag-handle')) return;
-          onRename(it.id);
-        },
-        ms: 520,
-        moveTolerance: 10
-      });
-    } else if (!editMode && typeof onSelect?.onLongPress === 'function') {
-      lp = attachLongPress(t, {
-        onLongPress: () => onSelect.onLongPress(it.id),
-        ms: 520,
-        moveTolerance: 10
-      });
-    }
+
+    // Browse vs Edit are fully separated:
+    // - Browse: dblclick copies
+    // - Edit: dblclick deletes; drag-sort enabled
 
     t.addEventListener('click', () => {
-      if (lp?.wasFired()) {
-        lp.reset();
+      // Edit mode: click ACTIVE tab -> delayed rename (drag/dblclick cancels)
+      // Edit mode: click other tabs -> switch immediately
+      // Browse mode: click -> switch
+      if (canRename && it.id === activeId) {
+        if (rootEl._oshitagRenameTimer) clearTimeout(rootEl._oshitagRenameTimer);
+        rootEl._oshitagRenameTimer = setTimeout(() => {
+          rootEl._oshitagRenameTimer = null;
+          if (!isEditMode()) return;
+          const stillActive = rootEl.querySelector('.tab.active')?.getAttribute('data-sort-id') === it.id;
+          if (!stillActive) return;
+          onRename(it.id);
+        }, RENAME_DELAY_MS);
         return;
       }
       onSelect(it.id);
     });
-    if (editMode) t.addEventListener('dblclick', () => onDelete(it.id));
+
+    t.addEventListener('dblclick', () => {
+      if (rootEl._oshitagRenameTimer) {
+        clearTimeout(rootEl._oshitagRenameTimer);
+        rootEl._oshitagRenameTimer = null;
+      }
+      if (editMode) return onDelete(it.id);
+      if (typeof onSelect?.onDblClick === 'function') return onSelect.onDblClick(it.id);
+    });
+
     rootEl.appendChild(t);
   }
 
@@ -1427,8 +1450,10 @@ function renderGroupStage() {
     enablePointerSort(grid, {
       itemSelector: '.idol-card[data-sort-id]',
       canStart: (e) => {
-        // Drag only via handle
-        if (!e.target.closest?.('.drag-handle')) return false;
+        // Avoid dragging the add button
+        if (e.target.closest?.('.idol-add')) return false;
+        // Avoid starting drag from interactive controls
+        if (e.target.closest?.('.color-dot')) return false;
         return true;
       },
       onReorder: (ids) => {
@@ -1466,16 +1491,26 @@ function renderIdolCard(group, idol) {
   card.className = 'idol-card';
   card.setAttribute('data-sort-id', idol.id);
 
+  let renameTimer = null;
+  const scheduleRename = () => {
+    if (!isEditMode()) return;
+    if (renameTimer) clearTimeout(renameTimer);
+    renameTimer = setTimeout(() => {
+      renameTimer = null;
+      if (!isEditMode()) return;
+      renameIdol(group.id, idol.id);
+    }, 320);
+  };
+  const cancelRename = () => {
+    if (renameTimer) clearTimeout(renameTimer);
+    renameTimer = null;
+  };
+
   const head = document.createElement('div');
   head.className = 'idol-head';
 
   const left = document.createElement('div');
   left.className = 'idol-name';
-
-  const handle = document.createElement('span');
-  handle.className = 'drag-handle';
-  handle.setAttribute('aria-hidden', 'true');
-  handle.textContent = '≡';
 
   const dot = document.createElement('div');
   dot.className = 'color-dot';
@@ -1502,31 +1537,18 @@ function renderIdolCard(group, idol) {
   left.appendChild(dot);
   left.appendChild(name);
 
-  left.insertBefore(handle, dot);
-
   head.appendChild(left);
 
-  let lp = null;
-  if (isEditMode()) {
-    lp = attachLongPress(head, {
-      onLongPress: (e) => {
-        if (e?.target?.closest?.('.drag-handle')) return;
-        renameIdol(group.id, idol.id);
-      },
-      ms: 520,
-      moveTolerance: 10
-    });
-  }
-
   head.addEventListener('click', () => {
-    if (lp?.wasFired()) {
-      lp.reset();
-      return;
-    }
-    if (isEditMode()) return;
+    if (isEditMode()) return scheduleRename();
     copyText(idol.name, idol.tags);
   });
-  if (isEditMode()) head.addEventListener('dblclick', () => deleteIdol(group.id, idol.id));
+  if (isEditMode()) {
+    head.addEventListener('dblclick', () => {
+      cancelRename();
+      deleteIdol(group.id, idol.id);
+    });
+  }
 
   const tags = document.createElement('div');
   tags.className = 'tag-grid';
@@ -1536,8 +1558,6 @@ function renderIdolCard(group, idol) {
     enablePointerSort(tags, {
       itemSelector: '.tag[data-sort-id]',
       canStart: (e) => {
-        // Drag only via handle
-        if (!e.target.closest?.('.drag-handle')) return false;
         const chip = e.target.closest?.('.tag');
         if (!chip) return false;
         if (chip.classList.contains('plus')) return false;
@@ -1558,41 +1578,33 @@ function renderIdolCard(group, idol) {
     const chip = document.createElement('div');
     chip.className = 'tag';
     const tagText = normalizeTagText(t.text);
-    const h = document.createElement('span');
-    h.className = 'drag-handle';
-    h.setAttribute('aria-hidden', 'true');
-    h.textContent = '≡';
-    const lbl = document.createElement('span');
-    lbl.className = 'tag-label';
-    lbl.textContent = tagText;
-    chip.appendChild(h);
-    chip.appendChild(lbl);
+    chip.textContent = tagText;
     chip.setAttribute('data-sort-id', t.id);
 
-    let lp = null;
-    if (isEditMode()) {
-      lp = attachLongPress(chip, {
-        onLongPress: (e) => {
-          if (e?.target?.closest?.('.drag-handle')) return;
-          renameIdolTag(group.id, idol.id, t.id);
-        },
-        ms: 520,
-        moveTolerance: 10
-      });
-    }
+    let renameTimer = null;
+    const scheduleRename = () => {
+      if (!isEditMode()) return;
+      if (renameTimer) clearTimeout(renameTimer);
+      renameTimer = setTimeout(() => {
+        renameTimer = null;
+        if (!isEditMode()) return;
+        renameIdolTag(group.id, idol.id, t.id);
+      }, 320);
+    };
+    const cancelRename = () => {
+      if (renameTimer) clearTimeout(renameTimer);
+      renameTimer = null;
+    };
 
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (lp?.wasFired()) {
-        lp.reset();
-        return;
-      }
-      if (isEditMode()) return;
+      if (isEditMode()) return scheduleRename();
       copyText(tagText, [tagText]);
     });
     if (isEditMode()) {
       chip.addEventListener('dblclick', (e) => {
         e.stopPropagation();
+        cancelRename();
         deleteTag(group.id, idol.id, t.id);
       });
     }
@@ -1647,8 +1659,6 @@ function renderFavoritesStage() {
     enablePointerSort(tags, {
       itemSelector: '.tag[data-sort-id]',
       canStart: (e) => {
-        // Drag only via handle
-        if (!e.target.closest?.('.drag-handle')) return false;
         const chip = e.target.closest?.('.tag');
         if (!chip) return false;
         if (chip.classList.contains('plus')) return false;
@@ -1668,41 +1678,32 @@ function renderFavoritesStage() {
     const chip = document.createElement('div');
     chip.className = 'tag';
     const tagText = normalizeTagText(t.text);
-    const h = document.createElement('span');
-    h.className = 'drag-handle';
-    h.setAttribute('aria-hidden', 'true');
-    h.textContent = '≡';
-    const lbl = document.createElement('span');
-    lbl.className = 'tag-label';
-    lbl.textContent = tagText;
-    chip.appendChild(h);
-    chip.appendChild(lbl);
+    chip.textContent = tagText;
     chip.setAttribute('data-sort-id', t.id);
 
-    let lp = null;
-    if (isEditMode()) {
-      lp = attachLongPress(chip, {
-        onLongPress: (e) => {
-          if (e?.target?.closest?.('.drag-handle')) return;
-          renameFavTag(f.id, t.id);
-        },
-        ms: 520,
-        moveTolerance: 10
-      });
-    }
-
+    let renameTimer = null;
+    const scheduleRename = () => {
+      if (!isEditMode()) return;
+      if (renameTimer) clearTimeout(renameTimer);
+      renameTimer = setTimeout(() => {
+        renameTimer = null;
+        if (!isEditMode()) return;
+        renameFavTag(f.id, t.id);
+      }, 320);
+    };
+    const cancelRename = () => {
+      if (renameTimer) clearTimeout(renameTimer);
+      renameTimer = null;
+    };
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (lp?.wasFired()) {
-        lp.reset();
-        return;
-      }
-      if (isEditMode()) return;
+      if (isEditMode()) return scheduleRename();
       copyText(tagText, [tagText]);
     });
     if (isEditMode()) {
       chip.addEventListener('dblclick', (e) => {
         e.stopPropagation();
+        cancelRename();
         deleteFavTag(f.id, t.id);
       });
     }
@@ -1734,29 +1735,19 @@ function render() {
   }
 
   const groupOnSelect = setActiveGroup;
-  groupOnSelect.onLongPress = (groupId) => {
+  groupOnSelect.onDblClick = (groupId) => {
+    if (isEditMode()) return;
     const g = findGroup(groupId);
     if (!g) return;
-    const list = tagsToCopy(collectGroupAllTags(g));
-    const text = list.join(' ');
-    if (!text) return toast(t('toast.copyEmpty') || '');
-
-    // iOS Safari/PWA often blocks clipboard writes for delayed long-press callbacks.
-    // Use a user-click button inside a modal for reliable copying.
-    if (isLikelyIOS()) return showCopyDialog({ title: g.name, text });
-    copyText(g.name, list);
+    copyText(g.name, collectGroupAllTags(g));
   };
 
   const favOnSelect = setActiveFav;
-  favOnSelect.onLongPress = (folderId) => {
+  favOnSelect.onDblClick = (folderId) => {
+    if (isEditMode()) return;
     const f = findFav(folderId);
     if (!f) return;
-    const list = tagsToCopy(f.tags);
-    const text = list.join(' ');
-    if (!text) return toast(t('toast.copyEmpty') || '');
-
-    if (isLikelyIOS()) return showCopyDialog({ title: f.name, text });
-    copyText(f.name, list);
+    copyText(f.name, f.tags);
   };
 
   renderTabs($('#groupTabs'), state.data.groups, activeGroup()?.id || null, {

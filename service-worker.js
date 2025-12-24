@@ -38,6 +38,11 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
+   // Ignore non-http(s) schemes (e.g. chrome-extension://) to avoid Cache API errors.
+  const url = new URL(req.url);
+  const isHttp = url.protocol === 'http:' || url.protocol === 'https:';
+  const isSameOrigin = url.origin === self.location.origin;
+
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
@@ -46,7 +51,7 @@ self.addEventListener('fetch', (event) => {
       try {
         const res = await fetch(req);
         // Cache same-origin basic responses.
-        if (res && res.ok && res.type === 'basic') {
+        if (isHttp && isSameOrigin && res && res.ok && res.type === 'basic') {
           cache.put(req, res.clone());
         }
         return res;

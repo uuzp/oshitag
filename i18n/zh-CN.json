@@ -50,21 +50,21 @@
 
   "help.section.groups": "组合（顶部标签页）",
   "help.groups.switch": "单击：切换",
-  "help.groups.longPressCopy": "浏览模式：长按复制该组合内所有TAG",
-  "help.groups.edit": "编辑模式：禁用复制；长按编辑名称；按住≡可拖拽排序；显示“＋”并允许新增/双击删除",
+  "help.groups.longPressCopy": "浏览模式：双击组合名复制该组合内所有TAG",
+  "help.groups.edit": "编辑模式：禁用复制；单击当前组合名可编辑名称；双击删除；按住拖拽可排序；显示“＋”可新增",
 
   "help.section.idols": "偶像",
   "help.idols.copy": "浏览模式：单击偶像名复制该偶像全部TAG",
-  "help.idols.edit": "编辑模式：禁用复制；长按偶像名编辑名称；按住≡可拖拽排序；双击删除；点颜色圆点改色；点“+”新增TAG",
+  "help.idols.edit": "编辑模式：禁用复制；单击可编辑名称；双击删除；按住拖拽可排序；点颜色圆点改色；点“+”新增TAG",
 
   "help.section.tags": "TAG",
   "help.tags.copy": "浏览模式：单击TAG复制",
-  "help.tags.edit": "编辑模式：禁用复制；长按TAG编辑名称；按住≡可拖拽排序；双击TAG删除",
+  "help.tags.edit": "编辑模式：禁用复制；单击TAG可编辑名称；双击TAG删除；按住拖拽可排序",
 
   "help.section.favorites": "收藏夹",
   "help.favorites.about": "两层结构：收藏夹 → TAG",
-  "help.favorites.copy": "浏览模式：单击收藏夹大矩形空白处复制全部TAG；长按收藏夹名称可复制",
-  "help.favorites.edit": "编辑模式：禁用复制；长按收藏夹名称编辑名称；按住≡可拖拽排序；显示“+”新增TAG；双击TAG删除",
+  "help.favorites.copy": "浏览模式：双击收藏夹名称复制全部TAG",
+  "help.favorites.edit": "编辑模式：禁用复制；单击当前收藏夹名称可编辑名称；双击删除；按住拖拽可排序；显示“+”新增TAG；双击TAG删除",
 
   "prompt.groupRename.title": "编辑组合名",
   "prompt.groupRename.placeholder": "组合名",
