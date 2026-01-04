@@ -151,6 +151,21 @@ body.edit-on .btn-edit {
   touch-action: manipulation;
 }
 
+@media (max-width: 640px) {
+  .tabs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .tab {
+    flex: 0 1 auto;
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.2;
+    text-align: center;
+  }
+}
+
 .tab.active {
   border-color: rgba(96,165,250,0.55);
   background: rgba(96,165,250,0.14);
