@@ -1953,6 +1953,11 @@ function importMarkdown(mdText) {
 function initMenu() {
   const btnMenu = $('#btnMenu');
   const menuPanel = $('#menuPanel');
+  const fileImport = $('#fileImportMd');
+
+  // iOS Files picker may disable unknown extensions when accept is set.
+  // Remove accept on iOS to allow selecting .md exports.
+  if (fileImport && isLikelyIOS()) fileImport.removeAttribute('accept');
 
   const closeMenu = () => {
     menuPanel.classList.remove('open');
@@ -1986,7 +1991,7 @@ function initMenu() {
     closeMenu();
   });
 
-  $('#fileImportMd').addEventListener('change', async (e) => {
+  fileImport.addEventListener('change', async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     const text = await f.text();
