@@ -4,7 +4,7 @@
  * Click to copy, double-click to delete
  */
 
-const APP_VERSION = '0.2.6';
+const APP_VERSION = '0.2.7';
 
 // ---------- i18n ----------
 const I18N_STORAGE_LANG = 'oshitag:i18n:lang';
@@ -782,6 +782,43 @@ function collectPreviewNames(data, { limit = 4 } = {}) {
   return { groups, favorites };
 }
 
+function diffNameLists(currentItems, incomingItems, { limit = 6 } = {}) {
+  const currentMap = new Map();
+  const incomingMap = new Map();
+
+  for (const name of currentItems || []) {
+    const text = String(name || '').trim();
+    if (!text) continue;
+    const key = text.toLowerCase();
+    if (!currentMap.has(key)) currentMap.set(key, text);
+  }
+
+  for (const name of incomingItems || []) {
+    const text = String(name || '').trim();
+    if (!text) continue;
+    const key = text.toLowerCase();
+    if (!incomingMap.has(key)) incomingMap.set(key, text);
+  }
+
+  const added = [];
+  const removed = [];
+
+  for (const [key, text] of incomingMap.entries()) {
+    if (!currentMap.has(key)) added.push(text);
+  }
+
+  for (const [key, text] of currentMap.entries()) {
+    if (!incomingMap.has(key)) removed.push(text);
+  }
+
+  return {
+    added: added.slice(0, limit),
+    removed: removed.slice(0, limit),
+    addedTotal: added.length,
+    removedTotal: removed.length
+  };
+}
+
 function formatDelta(value) {
   if (value === 0) return '0';
   return value > 0 ? `+${value}` : String(value);
@@ -820,6 +857,33 @@ function createImportCompareCard(title, summary, names) {
   return card;
 }
 
+function createImportDiffSection(title, diff, labels) {
+  const section = document.createElement('section');
+  section.className = 'compare-diff-card';
+
+  const heading = document.createElement('h4');
+  heading.className = 'compare-card-title';
+  heading.textContent = title;
+  section.appendChild(heading);
+
+  const buildBlock = (label, items, total) => {
+    const block = document.createElement('div');
+    block.className = 'compare-diff-block';
+
+    const text = document.createElement('div');
+    text.className = 'compare-names';
+    const extra = total > items.length ? `\n${t('import.diffMore', { count: total - items.length })}` : '';
+    text.textContent = `${label}${items.length ? `\n${items.join('\n')}${extra}` : `\n${t('import.previewEmpty')}`}`;
+    block.appendChild(text);
+    return block;
+  };
+
+  section.appendChild(buildBlock(labels.added, diff.added, diff.addedTotal));
+  section.appendChild(buildBlock(labels.removed, diff.removed, diff.removedTotal));
+
+  return section;
+}
+
 function backupDataBeforeImport() {
   try {
     localStorage.setItem(IMPORT_BACKUP_KEY, JSON.stringify({
@@ -853,6 +917,14 @@ function showImportConfirm(preview) {
     const currentSummary = summarizeData(state.data);
     const currentNames = collectPreviewNames(state.data);
     const incomingNames = collectPreviewNames(preview.data);
+    const groupDiff = diffNameLists(
+      (state.data?.groups || []).map((group) => group?.name),
+      (preview.data?.groups || []).map((group) => group?.name)
+    );
+    const favoriteDiff = diffNameLists(
+      (state.data?.favorites || []).map((folder) => folder?.name),
+      (preview.data?.favorites || []).map((folder) => folder?.name)
+    );
 
     const warning = document.createElement('div');
     warning.style.whiteSpace = 'pre-wrap';
@@ -873,9 +945,21 @@ function showImportConfirm(preview) {
       t('import.delta.tags', { delta: formatDelta(preview.summary.tags - currentSummary.tags) })
     ].join('\n');
 
+    const diffGrid = document.createElement('div');
+    diffGrid.className = 'compare-grid';
+    diffGrid.appendChild(createImportDiffSection(t('import.diffGroupsTitle'), groupDiff, {
+      added: t('import.diffGroupsAdded'),
+      removed: t('import.diffGroupsRemoved')
+    }));
+    diffGrid.appendChild(createImportDiffSection(t('import.diffFavoritesTitle'), favoriteDiff, {
+      added: t('import.diffFavoritesAdded'),
+      removed: t('import.diffFavoritesRemoved')
+    }));
+
     wrap.appendChild(warning);
     wrap.appendChild(compareGrid);
     wrap.appendChild(delta);
+    wrap.appendChild(diffGrid);
 
     openModal(t('import.confirmTitle'), wrap, [
       btn(t('modal.cancel'), 'btn btn-secondary', () => {

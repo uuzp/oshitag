@@ -406,6 +406,25 @@ body.edit-on .tag {
   background: rgba(255,255,255,0.03);
 }
 
+.compare-diff-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.02);
+}
+
+.compare-diff-block {
+  padding-top: 4px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.compare-diff-block:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
 .compare-card-title {
   margin: 0;
   font-size: 13px;
