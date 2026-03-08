@@ -1,33 +1,30 @@
-# oshiTag v0.2.1
+# oshiTag v0.2.4
 
 纯 HTML/CSS/JS 的离线可用(PWA)小工具：管理「组合 → 偶像 → TAG」与「收藏夹」，并一键复制到剪贴板。
 
 [![DEMO](https://img.shields.io/website?url=https%3A%2F%2Fuuzp.github.io%2Foshitag%2F&label=DEMO&up_message=online&down_message=down)](https://uuzp.github.io/oshitag/)
 ## 使用
 
-- 顶部「组合」标签页
-  - 单击：切换当前组合
-  - 长按：复制该组合内全部 TAG（空格拼接）
-  - 双击：删除组合
-  - `＋`：新增组合
-- 偶像卡片
-  - 单击偶像名：复制该偶像全部 TAG
-  - 双击偶像名：删除偶像
-  - 点击颜色圆点：选择应援色（预设 + HEX 输入）
-  - `+` TAG：新增 TAG（支持空格/逗号/# 分隔批量）
-- TAG
-  - 单击：复制该 TAG
-  - 双击：删除该 TAG
-- 收藏夹
-  - 两层结构：收藏夹 → TAG
-  - 单击收藏夹大区域空白：复制该收藏夹全部 TAG
-  - `+`：新增 TAG（弹窗会提供上方已有 TAG 的快速点选）
+- 默认是浏览模式，右上角 `＋` 可切到编辑模式。
+- 浏览模式
+  - 组合标签：单击切换，双击复制该组合内全部 TAG
+  - 偶像名：单击复制该偶像全部 TAG
+  - TAG：单击复制该 TAG
+  - 收藏夹标签：单击切换，双击复制该收藏夹全部 TAG
+  - 收藏夹内容区空白：单击复制该收藏夹全部 TAG
+- 编辑模式
+  - 组合 / 收藏夹当前标签：单击重命名，双击删除，拖拽排序
+  - 偶像名 / TAG：单击重命名，双击删除，拖拽排序
+  - 颜色圆点：选择应援色（预设 + HEX 输入）
+  - `＋` 或 `+` TAG：新增组合 / 收藏夹 / 偶像 / TAG
 
 ## 导入 / 导出
 
 右上角 `⋯` 菜单：
 - 导出：`# 组合 / ## 偶像 / ### TAG`，偶像应援色使用 `<!-- cheerColor: #RRGGBB -->`
 - 导入：读取上述结构；收藏夹使用 `# [FAVORITES]` 段落
+- 导入前会先显示“当前数据 vs 导入数据”对比摘要并确认覆盖当前本地数据，同时自动在浏览器 `localStorage` 中保存一份导入前备份
+- 可在右上角 `⋯` 菜单使用“恢复备份”回退到最近一次导入前状态
 
 ## 部署
 
@@ -51,5 +48,5 @@ python -m http.server 5173
 ## 说明
 
 - 数据保存在浏览器 `localStorage`。
-- PWA 使用 Service Worker 缓存静态资源；发布新版本时请更新 `service-worker.js` 的 `CACHE_NAME`。
+- PWA 使用 Service Worker 缓存静态资源；发布新版本时请同步更新 `manifest.json`、`assets/js/app.js` 与 `service-worker.js` 中的版本号。
 
