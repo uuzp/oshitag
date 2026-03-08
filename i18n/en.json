@@ -5,6 +5,7 @@
 
   "menu.export": "Export",
   "menu.import": "Import",
+  "menu.restoreBackup": "Restore backup",
   "menu.help": "Help",
   "menu.language": "Language",
 
@@ -36,8 +37,35 @@
   "toast.favTagAdded": "Added",
   "toast.favTagExists": "Already exists",
   "toast.tagExists": "Tag already exists",
-  "toast.mdImported": "Imported",
+  "toast.mdImported": "Imported: {groups} groups / {favorites} folders / {tags} tags",
+  "toast.importEmpty": "No importable content found in this file",
+  "toast.backupMissing": "No import backup available",
+  "toast.backupRestored": "Restored the latest pre-import backup",
   "toast.hexInvalid": "Please enter HEX like #39c5bb",
+
+  "import.confirmTitle": "Confirm import",
+  "import.confirmWarning": "This will replace current local data. A backup is saved automatically before import.",
+  "import.confirmReplace": "Replace data",
+  "import.currentData": "Current data",
+  "import.incomingData": "Import data",
+  "import.summary.groups": "Groups: {count}",
+  "import.summary.idols": "Idols: {count}",
+  "import.summary.favorites": "Folders: {count}",
+  "import.summary.tags": "Tags: {count}",
+  "import.previewGroups": "Group preview",
+  "import.previewFavorites": "Folder preview",
+  "import.previewEmpty": "None",
+  "import.deltaTitle": "Change summary",
+  "import.delta.groups": "Groups: {delta}",
+  "import.delta.idols": "Idols: {delta}",
+  "import.delta.favorites": "Folders: {delta}",
+  "import.delta.tags": "Tags: {delta}",
+
+  "backup.restoreTitle": "Restore backup",
+  "backup.restoreConfirm": "This will replace current local data with the latest auto-saved pre-import backup.",
+  "backup.restoreAction": "Restore",
+  "backup.savedAt": "Saved at: {time}",
+  "backup.savedAtUnknown": "Saved at: unknown",
 
   "modal.cancel": "Cancel",
   "modal.ok": "OK",
@@ -49,7 +77,7 @@
 
   "help.section.groups": "Groups (tabs)",
   "help.groups.switch": "Tap: switch",
-  "help.groups.longPressCopy": "Browse: long-press to copy all tags in this group",
+  "help.groups.longPressCopy": "Browse: double-tap a group tab to copy all tags in that group",
   "help.groups.edit": "Edit: copying disabled; long-press to rename; hold ≡ to drag-sort; shows “＋” and enables add/double-tap delete",
 
   "help.section.idols": "Idols",
@@ -62,7 +90,7 @@
 
   "help.section.favorites": "Favorites",
   "help.favorites.about": "Two levels: folder → tags",
-  "help.favorites.copy": "Browse: tap blank area to copy all tags; long-press folder name to copy",
+  "help.favorites.copy": "Browse: tap blank area to copy all tags; double-tap a folder tab to copy all tags",
   "help.favorites.edit": "Edit: copying disabled; long-press folder name to rename; hold ≡ to drag-sort; shows “+” to add; double-tap tag to delete",
 
   "prompt.groupRename.title": "Rename group",

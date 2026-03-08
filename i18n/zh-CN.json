@@ -5,6 +5,7 @@
 
   "menu.export": "导出",
   "menu.import": "导入",
+  "menu.restoreBackup": "恢复备份",
   "menu.help": "帮助",
   "menu.language": "语言",
 
@@ -37,8 +38,35 @@
   "toast.favTagAdded": "已添加到收藏夹",
   "toast.favTagExists": "收藏夹里已经有这个TAG",
   "toast.tagExists": "已经有这个TAG",
-  "toast.mdImported": "已导入",
+  "toast.mdImported": "已导入：{groups} 个组合 / {favorites} 个收藏夹 / {tags} 个TAG",
+  "toast.importEmpty": "导入文件里没有可用内容",
+  "toast.backupMissing": "没有可恢复的导入前备份",
+  "toast.backupRestored": "已恢复最近一次导入前备份",
   "toast.hexInvalid": "请输入形如 #39c5bb 的HEX颜色",
+
+  "import.confirmTitle": "确认导入",
+  "import.confirmWarning": "这会覆盖当前本地数据。导入前会自动保存一份备份。",
+  "import.confirmReplace": "确认覆盖",
+  "import.currentData": "当前数据",
+  "import.incomingData": "导入数据",
+  "import.summary.groups": "组合：{count}",
+  "import.summary.idols": "偶像：{count}",
+  "import.summary.favorites": "收藏夹：{count}",
+  "import.summary.tags": "TAG：{count}",
+  "import.previewGroups": "组合预览",
+  "import.previewFavorites": "收藏夹预览",
+  "import.previewEmpty": "无",
+  "import.deltaTitle": "变化摘要",
+  "import.delta.groups": "组合：{delta}",
+  "import.delta.idols": "偶像：{delta}",
+  "import.delta.favorites": "收藏夹：{delta}",
+  "import.delta.tags": "TAG：{delta}",
+
+  "backup.restoreTitle": "恢复备份",
+  "backup.restoreConfirm": "将用最近一次导入前自动保存的备份覆盖当前本地数据。",
+  "backup.restoreAction": "确认恢复",
+  "backup.savedAt": "备份时间：{time}",
+  "backup.savedAtUnknown": "备份时间：未知",
 
   "modal.cancel": "取消",
   "modal.ok": "确定",
@@ -50,7 +78,7 @@
 
   "help.section.groups": "组合（顶部标签页）",
   "help.groups.switch": "单击：切换",
-  "help.groups.longPressCopy": "浏览模式：双击组合名复制该组合内所有TAG",
+  "help.groups.longPressCopy": "浏览模式：双击组合标签复制该组合内所有TAG",
   "help.groups.edit": "编辑模式：禁用复制；单击当前组合名可编辑名称；双击删除；按住拖拽可排序；显示“＋”可新增",
 
   "help.section.idols": "偶像",
@@ -63,7 +91,7 @@
 
   "help.section.favorites": "收藏夹",
   "help.favorites.about": "两层结构：收藏夹 → TAG",
-  "help.favorites.copy": "浏览模式：双击收藏夹名称复制全部TAG",
+  "help.favorites.copy": "浏览模式：单击空白区域复制全部TAG；双击收藏夹标签复制全部TAG",
   "help.favorites.edit": "编辑模式：禁用复制；单击当前收藏夹名称可编辑名称；双击删除；按住拖拽可排序；显示“+”新增TAG；双击TAG删除",
 
   "prompt.groupRename.title": "编辑组合名",

@@ -5,6 +5,7 @@
 
   "menu.export": "내보내기",
   "menu.import": "가져오기",
+  "menu.restoreBackup": "백업 복원",
   "menu.help": "도움말",
   "menu.language": "언어",
 
@@ -37,8 +38,35 @@
   "toast.favTagAdded": "추가됨",
   "toast.favTagExists": "이미 있음",
   "toast.tagExists": "이미 있는 태그입니다",
-  "toast.mdImported": "가져옴",
+  "toast.mdImported": "가져옴: 그룹 {groups} / 폴더 {favorites} / 태그 {tags}",
+  "toast.importEmpty": "이 파일에는 가져올 수 있는 내용이 없습니다",
+  "toast.backupMissing": "복원할 가져오기 전 백업이 없습니다",
+  "toast.backupRestored": "가장 최근의 가져오기 전 백업을 복원했습니다",
   "toast.hexInvalid": "#39c5bb 같은 HEX를 입력하세요",
+
+  "import.confirmTitle": "가져오기 확인",
+  "import.confirmWarning": "현재 로컬 데이터를 덮어씁니다. 가져오기 전에 백업을 자동 저장합니다.",
+  "import.confirmReplace": "덮어쓰기",
+  "import.currentData": "현재 데이터",
+  "import.incomingData": "가져올 데이터",
+  "import.summary.groups": "그룹: {count}",
+  "import.summary.idols": "아이돌: {count}",
+  "import.summary.favorites": "폴더: {count}",
+  "import.summary.tags": "태그: {count}",
+  "import.previewGroups": "그룹 미리보기",
+  "import.previewFavorites": "폴더 미리보기",
+  "import.previewEmpty": "없음",
+  "import.deltaTitle": "변경 요약",
+  "import.delta.groups": "그룹: {delta}",
+  "import.delta.idols": "아이돌: {delta}",
+  "import.delta.favorites": "폴더: {delta}",
+  "import.delta.tags": "태그: {delta}",
+
+  "backup.restoreTitle": "백업 복원",
+  "backup.restoreConfirm": "가장 최근에 자동 저장된 가져오기 전 백업으로 현재 로컬 데이터를 덮어씁니다.",
+  "backup.restoreAction": "복원",
+  "backup.savedAt": "저장 시각: {time}",
+  "backup.savedAtUnknown": "저장 시각: 알 수 없음",
 
   "modal.cancel": "취소",
   "modal.ok": "확인",
@@ -50,7 +78,7 @@
 
   "help.section.groups": "그룹(탭)",
   "help.groups.switch": "탭: 전환",
-  "help.groups.longPressCopy": "보기: 길게 눌러 이 그룹의 모든 태그 복사",
+  "help.groups.longPressCopy": "보기: 그룹 탭을 더블탭해 이 그룹의 모든 태그 복사",
   "help.groups.edit": "편집: 복사 비활성화; 길게 눌러 이름 변경; ≡를 누르고 드래그 정렬; ‘＋’ 표시/더블탭 삭제",
 
   "help.section.idols": "아이돌",
@@ -63,7 +91,7 @@
 
   "help.section.favorites": "즐겨찾기",
   "help.favorites.about": "2단계: 폴더 → 태그",
-  "help.favorites.copy": "보기: 빈 영역 탭으로 모든 태그 복사; 폴더명은 길게 눌러 복사",
+  "help.favorites.copy": "보기: 빈 영역 탭으로 모든 태그 복사; 폴더 탭을 더블탭해 모든 태그 복사",
   "help.favorites.edit": "편집: 복사 비활성화; 폴더명을 길게 눌러 이름 변경; ≡를 누르고 드래그 정렬; +로 추가; 더블탭 삭제",
 
   "prompt.groupRename.title": "그룹 이름 변경",

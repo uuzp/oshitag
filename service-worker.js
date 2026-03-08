@@ -1,4 +1,4 @@
-const CACHE_NAME = 'oshitag-0.2.3-0';
+const CACHE_NAME = 'oshitag-0.2.6-0';
 
 const ASSETS = [
   './',
@@ -38,27 +38,46 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
-   // Ignore non-http(s) schemes (e.g. chrome-extension://) to avoid Cache API errors.
   const url = new URL(req.url);
   const isHttp = url.protocol === 'http:' || url.protocol === 'https:';
+  if (!isHttp) return;
+
   const isSameOrigin = url.origin === self.location.origin;
+
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      (async () => {
+        try {
+          const res = await fetch(req);
+          const cache = await caches.open(CACHE_NAME);
+          if (res && res.ok && res.type === 'basic') cache.put('./index.html', res.clone());
+          return res;
+        } catch {
+          const cache = await caches.open(CACHE_NAME);
+          const fallback = await cache.match('./index.html');
+          return fallback || new Response('离线且无缓存', { status: 503 });
+        }
+      })()
+    );
+    return;
+  }
+
+  if (!isSameOrigin) return;
 
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
       const cached = await cache.match(req);
       if (cached) return cached;
+
       try {
         const res = await fetch(req);
-        // Cache same-origin basic responses.
-        if (isHttp && isSameOrigin && res && res.ok && res.type === 'basic') {
+        if (res && res.ok && res.type === 'basic') {
           cache.put(req, res.clone());
         }
         return res;
-      } catch (e) {
-        // Fallback to app shell
-        const fallback = await cache.match('./index.html');
-        return fallback || new Response('离线且无缓存', { status: 503 });
+      } catch {
+        return new Response('离线且无缓存', { status: 503 });
       }
     })()
   );

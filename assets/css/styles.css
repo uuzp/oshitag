@@ -121,6 +121,11 @@ body.edit-on .btn-edit {
   cursor: pointer;
 }
 
+.menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -131,9 +136,8 @@ body.edit-on .btn-edit {
 
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
   padding: 2px;
 }
 
@@ -387,6 +391,39 @@ body.edit-on .tag {
   gap: 8px;
 }
 
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.compare-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.03);
+}
+
+.compare-card-title {
+  margin: 0;
+  font-size: 13px;
+}
+
+.compare-stats,
+.compare-names,
+.compare-delta {
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.compare-names,
+.compare-delta {
+  color: var(--muted);
+}
+
 .input {
   width: 100%;
   background: rgba(255,255,255,0.03);
@@ -438,4 +475,5 @@ body.edit-on .tag {
 
 @media (max-width: 520px) {
   .idol-grid { grid-template-columns: 1fr; }
+  .compare-grid { grid-template-columns: 1fr; }
 }

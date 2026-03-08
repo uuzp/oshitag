@@ -4,7 +4,7 @@
  * Click to copy, double-click to delete
  */
 
-const APP_VERSION = '0.2.3';
+const APP_VERSION = '0.2.6';
 
 // ---------- i18n ----------
 const I18N_STORAGE_LANG = 'oshitag:i18n:lang';
@@ -149,6 +149,7 @@ async function initI18n() {
 
 const STORAGE_KEY = 'oshitag:data:v2';
 const LEGACY_KEY = 'oshitag:data:v1';
+const IMPORT_BACKUP_KEY = 'oshitag:data:import-backup:v1';
 const MD_FAVORITES_HEADING = '[FAVORITES]';
 
 // Common penlight / idol cheer colors (not an official standard; meant to cover the usual set)
@@ -190,71 +191,6 @@ const PRESET_COLORS = [
 ];
 
 const $ = (sel, root = document) => root.querySelector(sel);
-
-function isLikelyIOS() {
-  const ua = String(navigator.userAgent || '');
-  // iPadOS 13+ may report as Mac; detect touch points.
-  const isAppleTouchDesktop = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
-  return /iP(hone|od|ad)/.test(ua) || isAppleTouchDesktop;
-}
-
-function attachLongPress(el, { onLongPress, ms = 520, moveTolerance = 10 }) {
-  let timer = null;
-  let startX = 0;
-  let startY = 0;
-  let fired = false;
-
-  const clear = () => {
-    if (timer) clearTimeout(timer);
-    timer = null;
-  };
-
-  const start = (x, y, eventForCallback) => {
-    fired = false;
-    clear();
-    startX = x;
-    startY = y;
-    timer = setTimeout(() => {
-      fired = true;
-      onLongPress?.(eventForCallback);
-    }, ms);
-  };
-
-  const move = (x, y) => {
-    if (!timer) return;
-    if (Math.abs(x - startX) > moveTolerance || Math.abs(y - startY) > moveTolerance) clear();
-  };
-
-  const cancel = () => clear();
-
-  if ('PointerEvent' in window) {
-    el.addEventListener('pointerdown', (e) => start(e.clientX, e.clientY, e));
-    el.addEventListener('pointermove', (e) => move(e.clientX, e.clientY));
-    el.addEventListener('pointerup', cancel);
-    el.addEventListener('pointercancel', cancel);
-    el.addEventListener('pointerleave', cancel);
-  } else {
-    el.addEventListener('touchstart', (e) => {
-      const t = e.touches?.[0];
-      if (!t) return;
-      start(t.clientX, t.clientY, e);
-    }, { passive: true });
-    el.addEventListener('touchmove', (e) => {
-      const t = e.touches?.[0];
-      if (!t) return;
-      move(t.clientX, t.clientY);
-    }, { passive: true });
-    el.addEventListener('touchend', cancel);
-    el.addEventListener('touchcancel', cancel);
-  }
-
-  return {
-    wasFired: () => fired,
-    reset: () => {
-      fired = false;
-    }
-  };
-}
 
 function uid() {
   if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
@@ -804,45 +740,194 @@ async function renameFavTag(folderId, tagId) {
   render();
 }
 
-function showCopyDialog({ title, text }) {
-  const wrap = document.createElement('div');
-  wrap.className = 'field';
+function dedupeTagObjects(tags) {
+  const seen = new Set();
+  const out = [];
 
-  const hint = document.createElement('div');
-  hint.style.color = 'var(--muted)';
-  hint.style.fontSize = '12px';
-  hint.textContent = t('copyDialog.hint') || '';
+  for (const tag of tags || []) {
+    const text = normalizeTagText(tag?.text ?? tag);
+    if (!text) continue;
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ id: tag?.id || uid(), text });
+  }
 
-  const textarea = document.createElement('textarea');
-  textarea.className = 'input';
-  textarea.setAttribute('readonly', '');
-  textarea.style.minHeight = '120px';
-  textarea.style.resize = 'vertical';
-  textarea.value = String(text || '');
+  return out;
+}
 
-  wrap.appendChild(hint);
-  wrap.appendChild(textarea);
-
-  const onCopy = async () => {
-    const ok = await writeClipboard(textarea.value);
-    toast(ok ? (t('toast.copied', { label: title }) || '') : t('toast.copyFailed'));
-    if (ok) closeModal();
+function summarizeData(data) {
+  const summary = {
+    groups: Array.isArray(data?.groups) ? data.groups.length : 0,
+    idols: 0,
+    favorites: Array.isArray(data?.favorites) ? data.favorites.length : 0,
+    tags: 0
   };
 
-  openModal(String(title || ''), wrap, [
-    btn(t('modal.cancel') || '取消', 'btn btn-secondary', closeModal),
-    btn(t('copyDialog.copy') || t('modal.ok') || '复制', 'btn', onCopy)
-  ]);
+  for (const group of data?.groups || []) {
+    summary.idols += Array.isArray(group?.idols) ? group.idols.length : 0;
+    for (const idol of group?.idols || []) summary.tags += Array.isArray(idol?.tags) ? idol.tags.length : 0;
+  }
 
-  requestAnimationFrame(() => {
-    // Keep focus for easy manual copy, but do NOT auto-select all (looks odd after long-press).
-    textarea.focus();
-    try {
-      const len = textarea.value.length;
-      textarea.setSelectionRange(len, len);
-    } catch {
-      // ignore
-    }
+  for (const folder of data?.favorites || []) {
+    summary.tags += Array.isArray(folder?.tags) ? folder.tags.length : 0;
+  }
+
+  return summary;
+}
+
+function collectPreviewNames(data, { limit = 4 } = {}) {
+  const groups = (data?.groups || []).map((group) => String(group?.name || '').trim()).filter(Boolean).slice(0, limit);
+  const favorites = (data?.favorites || []).map((folder) => String(folder?.name || '').trim()).filter(Boolean).slice(0, limit);
+  return { groups, favorites };
+}
+
+function formatDelta(value) {
+  if (value === 0) return '0';
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function createImportCompareCard(title, summary, names) {
+  const card = document.createElement('section');
+  card.className = 'compare-card';
+
+  const heading = document.createElement('h4');
+  heading.className = 'compare-card-title';
+  heading.textContent = title;
+
+  const stats = document.createElement('div');
+  stats.className = 'compare-stats';
+  stats.textContent = [
+    t('import.summary.groups', { count: summary.groups }),
+    t('import.summary.idols', { count: summary.idols }),
+    t('import.summary.favorites', { count: summary.favorites }),
+    t('import.summary.tags', { count: summary.tags })
+  ].join('\n');
+
+  const groups = document.createElement('div');
+  groups.className = 'compare-names';
+  groups.textContent = `${t('import.previewGroups')}${names.groups.length ? `\n${names.groups.join('\n')}` : `\n${t('import.previewEmpty')}`}`;
+
+  const favorites = document.createElement('div');
+  favorites.className = 'compare-names';
+  favorites.textContent = `${t('import.previewFavorites')}${names.favorites.length ? `\n${names.favorites.join('\n')}` : `\n${t('import.previewEmpty')}`}`;
+
+  card.appendChild(heading);
+  card.appendChild(stats);
+  card.appendChild(groups);
+  card.appendChild(favorites);
+
+  return card;
+}
+
+function backupDataBeforeImport() {
+  try {
+    localStorage.setItem(IMPORT_BACKUP_KEY, JSON.stringify({
+      savedAt: new Date().toISOString(),
+      data: state.data
+    }));
+  } catch {
+    // ignore backup failures; import can still proceed
+  }
+}
+
+function loadImportBackup() {
+  const raw = localStorage.getItem(IMPORT_BACKUP_KEY);
+  if (!raw) return null;
+
+  const parsed = safeParseJson(raw);
+  if (!parsed || typeof parsed !== 'object' || !parsed.data || typeof parsed.data !== 'object') return null;
+
+  return {
+    savedAt: parsed.savedAt ? String(parsed.savedAt) : '',
+    data: parsed.data,
+    summary: summarizeData(parsed.data)
+  };
+}
+
+function showImportConfirm(preview) {
+  return new Promise((resolve) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+
+    const currentSummary = summarizeData(state.data);
+    const currentNames = collectPreviewNames(state.data);
+    const incomingNames = collectPreviewNames(preview.data);
+
+    const warning = document.createElement('div');
+    warning.style.whiteSpace = 'pre-wrap';
+    warning.textContent = t('import.confirmWarning');
+
+    const compareGrid = document.createElement('div');
+    compareGrid.className = 'compare-grid';
+    compareGrid.appendChild(createImportCompareCard(t('import.currentData'), currentSummary, currentNames));
+    compareGrid.appendChild(createImportCompareCard(t('import.incomingData'), preview.summary, incomingNames));
+
+    const delta = document.createElement('div');
+    delta.className = 'compare-delta';
+    delta.textContent = [
+      t('import.deltaTitle'),
+      t('import.delta.groups', { delta: formatDelta(preview.summary.groups - currentSummary.groups) }),
+      t('import.delta.idols', { delta: formatDelta(preview.summary.idols - currentSummary.idols) }),
+      t('import.delta.favorites', { delta: formatDelta(preview.summary.favorites - currentSummary.favorites) }),
+      t('import.delta.tags', { delta: formatDelta(preview.summary.tags - currentSummary.tags) })
+    ].join('\n');
+
+    wrap.appendChild(warning);
+    wrap.appendChild(compareGrid);
+    wrap.appendChild(delta);
+
+    openModal(t('import.confirmTitle'), wrap, [
+      btn(t('modal.cancel'), 'btn btn-secondary', () => {
+        closeModal();
+        resolve(false);
+      }),
+      btn(t('import.confirmReplace'), 'btn', () => {
+        closeModal();
+        resolve(true);
+      })
+    ]);
+  });
+}
+
+function showRestoreBackupConfirm(backup) {
+  return new Promise((resolve) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+
+    const warning = document.createElement('div');
+    warning.style.whiteSpace = 'pre-wrap';
+    warning.textContent = t('backup.restoreConfirm');
+
+    const meta = document.createElement('div');
+    meta.style.whiteSpace = 'pre-wrap';
+    meta.textContent = backup.savedAt
+      ? t('backup.savedAt', { time: backup.savedAt })
+      : t('backup.savedAtUnknown');
+
+    const summary = document.createElement('div');
+    summary.style.whiteSpace = 'pre-wrap';
+    summary.textContent = [
+      t('import.summary.groups', { count: backup.summary.groups }),
+      t('import.summary.idols', { count: backup.summary.idols }),
+      t('import.summary.favorites', { count: backup.summary.favorites }),
+      t('import.summary.tags', { count: backup.summary.tags })
+    ].join('\n');
+
+    wrap.appendChild(warning);
+    wrap.appendChild(meta);
+    wrap.appendChild(summary);
+
+    openModal(t('backup.restoreTitle'), wrap, [
+      btn(t('modal.cancel'), 'btn btn-secondary', () => {
+        closeModal();
+        resolve(false);
+      }),
+      btn(t('backup.restoreAction'), 'btn', () => {
+        closeModal();
+        resolve(true);
+      })
+    ]);
   });
 }
 
@@ -1878,7 +1963,7 @@ function downloadText(filename, text) {
   URL.revokeObjectURL(url);
 }
 
-function importMarkdown(mdText) {
+function parseMarkdownImport(mdText) {
   const text = String(mdText ?? '');
   const lines = text.split(/\r?\n/);
 
@@ -1886,6 +1971,7 @@ function importMarkdown(mdText) {
 
   let currentGroup = null;
   let currentIdol = null;
+  let currentFavFolder = null;
   let inFav = false;
 
   const takeCheerColorIfPresent = (i) => {
@@ -1900,9 +1986,11 @@ function importMarkdown(mdText) {
 
     if (line.startsWith('# ')) {
       const name = line.slice(2).trim();
+      if (!name) continue;
       inFav = name === MD_FAVORITES_HEADING;
       currentIdol = null;
       currentGroup = null;
+      currentFavFolder = null;
       if (!inFav) {
         currentGroup = { id: uid(), name, idols: [] };
         next.groups.push(currentGroup);
@@ -1913,10 +2001,12 @@ function importMarkdown(mdText) {
 
     if (line.startsWith('## ')) {
       const name = line.slice(3).trim();
+      if (!name) continue;
       currentIdol = null;
       if (inFav) {
         const folder = { id: uid(), name, tags: [] };
         next.favorites.push(folder);
+        currentFavFolder = folder;
         if (!next.ui.activeFavId) next.ui.activeFavId = folder.id;
       } else if (currentGroup) {
         const idol = { id: uid(), name, cheerColor: PRESET_COLORS[0], tags: [] };
@@ -1932,9 +2022,8 @@ function importMarkdown(mdText) {
       const t = normalizeTagText(line.slice(4).trim());
       if (!t) continue;
       if (inFav) {
-        const folder = next.favorites.at(-1);
-        if (!folder) continue;
-        folder.tags.push({ id: uid(), text: t });
+        if (!currentFavFolder) continue;
+        currentFavFolder.tags.push({ id: uid(), text: t });
       } else {
         if (!currentIdol) continue;
         currentIdol.tags.push({ id: uid(), text: t });
@@ -1943,16 +2032,44 @@ function importMarkdown(mdText) {
     }
   }
 
-  state.data = next;
+  for (const group of next.groups) {
+    group.idols = group.idols.filter((idol) => idol.name);
+    for (const idol of group.idols) idol.tags = dedupeTagObjects(idol.tags);
+  }
+
+  for (const folder of next.favorites) {
+    folder.tags = dedupeTagObjects(folder.tags);
+  }
+
+  const summary = summarizeData(next);
+  const hasContent = summary.groups > 0 || summary.favorites > 0 || summary.tags > 0;
+  if (!hasContent) return null;
+
+  return { data: next, summary };
+}
+
+function applyImportedData(preview) {
+  backupDataBeforeImport();
+  state.data = preview.data;
   saveData();
   render();
-  toast(t('toast.mdImported'));
+  toast(t('toast.mdImported', {
+    groups: preview.summary.groups,
+    favorites: preview.summary.favorites,
+    tags: preview.summary.tags
+  }));
 }
 
 // ---------- Menu + PWA ----------
 function initMenu() {
   const btnMenu = $('#btnMenu');
   const menuPanel = $('#menuPanel');
+  const btnRestoreBackup = $('#btnRestoreBackup');
+
+  const updateRestoreButtonState = () => {
+    if (!btnRestoreBackup) return;
+    btnRestoreBackup.disabled = !loadImportBackup();
+  };
 
   const closeMenu = () => {
     menuPanel.classList.remove('open');
@@ -1961,6 +2078,7 @@ function initMenu() {
   };
 
   const openMenu = () => {
+    updateRestoreButtonState();
     menuPanel.classList.add('open');
     btnMenu.setAttribute('aria-expanded', 'true');
     menuPanel.setAttribute('aria-hidden', 'false');
@@ -1990,9 +2108,37 @@ function initMenu() {
     const f = e.target.files?.[0];
     if (!f) return;
     const text = await f.text();
-    importMarkdown(text);
     e.target.value = '';
     closeMenu();
+
+    const preview = parseMarkdownImport(text);
+    if (!preview) {
+      toast(t('toast.importEmpty'));
+      return;
+    }
+
+    const ok = await showImportConfirm(preview);
+    if (!ok) return;
+
+    applyImportedData(preview);
+  });
+
+  btnRestoreBackup?.addEventListener('click', async () => {
+    closeMenu();
+
+    const backup = loadImportBackup();
+    if (!backup) {
+      toast(t('toast.backupMissing'));
+      return;
+    }
+
+    const ok = await showRestoreBackupConfirm(backup);
+    if (!ok) return;
+
+    state.data = backup.data;
+    saveData();
+    render();
+    toast(t('toast.backupRestored'));
   });
 
   $('#btnHelp').addEventListener('click', () => {
@@ -2267,23 +2413,11 @@ function initPwa() {
   }
 }
 
-function initDisableContextMenu() {
-  document.addEventListener('contextmenu', (e) => {
-    const t = e.target;
-    const allow =
-      (t && (t.closest?.('input, textarea, [contenteditable="true"], [contenteditable=""]'))) ||
-      (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA'));
-    if (allow) return;
-    e.preventDefault();
-  });
-}
-
 function init() {
   // i18n must be ready before initial render/menu wiring
   initI18n().finally(() => {
     initMenu();
     initModalClose();
-    initDisableContextMenu();
     initPwa();
 
     const btnEdit = $('#btnEdit');
