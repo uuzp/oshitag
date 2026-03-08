@@ -4,7 +4,7 @@
  * Click to copy, double-click to delete
  */
 
-const APP_VERSION = '0.2.7';
+const APP_VERSION = '0.2.8';
 
 // ---------- i18n ----------
 const I18N_STORAGE_LANG = 'oshitag:i18n:lang';
@@ -151,6 +151,9 @@ const STORAGE_KEY = 'oshitag:data:v2';
 const LEGACY_KEY = 'oshitag:data:v1';
 const IMPORT_BACKUP_KEY = 'oshitag:data:import-backup:v1';
 const MD_FAVORITES_HEADING = '[FAVORITES]';
+const IMPORT_MODE_REPLACE = 'replace';
+const IMPORT_MODE_MERGE = 'merge';
+const IMPORT_MODE_APPEND = 'append';
 
 // Common penlight / idol cheer colors (not an official standard; meant to cover the usual set)
 const PRESET_COLORS = [
@@ -571,6 +574,7 @@ function openModal(title, bodyNode, actions, onRequestClose = null) {
 function closeModal() {
   const modal = $('#modal');
   modal.classList.remove('open');
+  modal.classList.remove('modal-wide');
   modal.setAttribute('aria-hidden', 'true');
   modalOnRequestClose = null;
 }
@@ -776,46 +780,225 @@ function summarizeData(data) {
   return summary;
 }
 
-function collectPreviewNames(data, { limit = 4 } = {}) {
-  const groups = (data?.groups || []).map((group) => String(group?.name || '').trim()).filter(Boolean).slice(0, limit);
-  const favorites = (data?.favorites || []).map((folder) => String(folder?.name || '').trim()).filter(Boolean).slice(0, limit);
-  return { groups, favorites };
+function normalizeNameKey(name) {
+  return String(name || '').trim().toLowerCase();
 }
 
-function diffNameLists(currentItems, incomingItems, { limit = 6 } = {}) {
+function cloneTag(tag, { regenerateIds = false } = {}) {
+  return {
+    id: regenerateIds || !tag?.id ? uid() : tag.id,
+    text: normalizeTagText(tag?.text)
+  };
+}
+
+function cloneIdol(idol, { regenerateIds = false } = {}) {
+  return {
+    id: regenerateIds || !idol?.id ? uid() : idol.id,
+    name: String(idol?.name || '').trim(),
+    cheerColor: String(idol?.cheerColor || '').trim() || PRESET_COLORS[0],
+    tags: dedupeTagObjects((idol?.tags || []).map((tag) => cloneTag(tag, { regenerateIds })))
+  };
+}
+
+function cloneGroup(group, { regenerateIds = false } = {}) {
+  return {
+    id: regenerateIds || !group?.id ? uid() : group.id,
+    name: String(group?.name || '').trim(),
+    idols: (group?.idols || []).map((idol) => cloneIdol(idol, { regenerateIds })).filter((idol) => idol.name)
+  };
+}
+
+function cloneFavorite(folder, { regenerateIds = false } = {}) {
+  return {
+    id: regenerateIds || !folder?.id ? uid() : folder.id,
+    name: String(folder?.name || '').trim(),
+    tags: dedupeTagObjects((folder?.tags || []).map((tag) => cloneTag(tag, { regenerateIds })))
+  };
+}
+
+function cloneData(data, { regenerateIds = false } = {}) {
+  const next = defaultData();
+  next.groups = (data?.groups || []).map((group) => cloneGroup(group, { regenerateIds })).filter((group) => group.name);
+  next.favorites = (data?.favorites || []).map((folder) => cloneFavorite(folder, { regenerateIds })).filter((folder) => folder.name);
+
+  if (!regenerateIds) {
+    next.ui.activeGroupId = data?.ui?.activeGroupId || next.groups[0]?.id || null;
+    next.ui.activeFavId = data?.ui?.activeFavId || next.favorites[0]?.id || null;
+  }
+
+  ensureActiveIds(next);
+  return next;
+}
+
+function ensureActiveIds(data) {
+  if (!data?.groups?.some((group) => group.id === data?.ui?.activeGroupId)) {
+    data.ui.activeGroupId = data?.groups?.[0]?.id || null;
+  }
+  if (!data?.favorites?.some((folder) => folder.id === data?.ui?.activeFavId)) {
+    data.ui.activeFavId = data?.favorites?.[0]?.id || null;
+  }
+}
+
+function mergeTagList(targetTags, incomingTags) {
+  const existing = new Set((targetTags || []).map((tag) => normalizeTagText(tag.text).toLowerCase()));
+  for (const tag of incomingTags || []) {
+    const text = normalizeTagText(tag.text);
+    if (!text) continue;
+    const key = text.toLowerCase();
+    if (existing.has(key)) continue;
+    existing.add(key);
+    targetTags.push({ id: uid(), text });
+  }
+}
+
+function buildReplaceImportResult(importedData) {
+  return cloneData(importedData);
+}
+
+function buildAppendImportResult(currentData, importedData) {
+  const result = cloneData(currentData);
+  for (const group of importedData?.groups || []) result.groups.push(cloneGroup(group, { regenerateIds: true }));
+  for (const folder of importedData?.favorites || []) result.favorites.push(cloneFavorite(folder, { regenerateIds: true }));
+  ensureActiveIds(result);
+  return result;
+}
+
+function buildMergeImportResult(currentData, importedData) {
+  const result = cloneData(currentData);
+
+  for (const incomingGroup of importedData?.groups || []) {
+    const groupKey = normalizeNameKey(incomingGroup.name);
+    if (!groupKey) continue;
+
+    const targetGroup = result.groups.find((group) => normalizeNameKey(group.name) === groupKey);
+    if (!targetGroup) {
+      result.groups.push(cloneGroup(incomingGroup, { regenerateIds: true }));
+      continue;
+    }
+
+    for (const incomingIdol of incomingGroup.idols || []) {
+      const idolKey = normalizeNameKey(incomingIdol.name);
+      if (!idolKey) continue;
+
+      const targetIdol = targetGroup.idols.find((idol) => normalizeNameKey(idol.name) === idolKey);
+      if (!targetIdol) {
+        targetGroup.idols.push(cloneIdol(incomingIdol, { regenerateIds: true }));
+        continue;
+      }
+
+      mergeTagList(targetIdol.tags, incomingIdol.tags || []);
+      if (!targetIdol.cheerColor && incomingIdol.cheerColor) targetIdol.cheerColor = incomingIdol.cheerColor;
+    }
+  }
+
+  for (const incomingFolder of importedData?.favorites || []) {
+    const folderKey = normalizeNameKey(incomingFolder.name);
+    if (!folderKey) continue;
+
+    const targetFolder = result.favorites.find((folder) => normalizeNameKey(folder.name) === folderKey);
+    if (!targetFolder) {
+      result.favorites.push(cloneFavorite(incomingFolder, { regenerateIds: true }));
+      continue;
+    }
+
+    mergeTagList(targetFolder.tags, incomingFolder.tags || []);
+  }
+
+  ensureActiveIds(result);
+  return result;
+}
+
+function listGroupLabels(data) {
+  return (data?.groups || []).map((group) => String(group?.name || '').trim()).filter(Boolean);
+}
+
+function listIdolLabels(data) {
+  const out = [];
+  for (const group of data?.groups || []) {
+    const groupName = String(group?.name || '').trim();
+    for (const idol of group?.idols || []) {
+      const idolName = String(idol?.name || '').trim();
+      if (!groupName || !idolName) continue;
+      out.push(`${groupName} / ${idolName}`);
+    }
+  }
+  return out;
+}
+
+function listFavoriteLabels(data) {
+  return (data?.favorites || []).map((folder) => String(folder?.name || '').trim()).filter(Boolean);
+}
+
+function listTagLabels(data) {
+  const out = [];
+
+  for (const group of data?.groups || []) {
+    const groupName = String(group?.name || '').trim();
+    for (const idol of group?.idols || []) {
+      const idolName = String(idol?.name || '').trim();
+      for (const tag of idol?.tags || []) {
+        const text = normalizeTagText(tag?.text);
+        if (!groupName || !idolName || !text) continue;
+        out.push(`${groupName} / ${idolName} / ${text}`);
+      }
+    }
+  }
+
+  for (const folder of data?.favorites || []) {
+    const folderName = String(folder?.name || '').trim();
+    for (const tag of folder?.tags || []) {
+      const text = normalizeTagText(tag?.text);
+      if (!folderName || !text) continue;
+      out.push(`${MD_FAVORITES_HEADING} / ${folderName} / ${text}`);
+    }
+  }
+
+  return out;
+}
+
+function diffLabelLists(currentItems, incomingItems, { limit = 6 } = {}) {
   const currentMap = new Map();
   const incomingMap = new Map();
 
-  for (const name of currentItems || []) {
-    const text = String(name || '').trim();
-    if (!text) continue;
-    const key = text.toLowerCase();
-    if (!currentMap.has(key)) currentMap.set(key, text);
-  }
+  const addCount = (map, item) => {
+    const text = String(item || '').trim();
+    if (!text) return;
+    const key = normalizeNameKey(text);
+    const prev = map.get(key);
+    if (prev) {
+      prev.count += 1;
+    } else {
+      map.set(key, { text, count: 1 });
+    }
+  };
 
-  for (const name of incomingItems || []) {
-    const text = String(name || '').trim();
-    if (!text) continue;
-    const key = text.toLowerCase();
-    if (!incomingMap.has(key)) incomingMap.set(key, text);
-  }
+  for (const item of currentItems || []) addCount(currentMap, item);
+  for (const item of incomingItems || []) addCount(incomingMap, item);
 
   const added = [];
   const removed = [];
+  let addedTotal = 0;
+  let removedTotal = 0;
 
-  for (const [key, text] of incomingMap.entries()) {
-    if (!currentMap.has(key)) added.push(text);
+  for (const [key, entry] of incomingMap.entries()) {
+    const diff = entry.count - (currentMap.get(key)?.count || 0);
+    if (diff <= 0) continue;
+    addedTotal += diff;
+    added.push(diff > 1 ? `${entry.text} ×${diff}` : entry.text);
   }
 
-  for (const [key, text] of currentMap.entries()) {
-    if (!incomingMap.has(key)) removed.push(text);
+  for (const [key, entry] of currentMap.entries()) {
+    const diff = entry.count - (incomingMap.get(key)?.count || 0);
+    if (diff <= 0) continue;
+    removedTotal += diff;
+    removed.push(diff > 1 ? `${entry.text} ×${diff}` : entry.text);
   }
 
   return {
     added: added.slice(0, limit),
     removed: removed.slice(0, limit),
-    addedTotal: added.length,
-    removedTotal: removed.length
+    addedTotal,
+    removedTotal
   };
 }
 
@@ -824,7 +1007,7 @@ function formatDelta(value) {
   return value > 0 ? `+${value}` : String(value);
 }
 
-function createImportCompareCard(title, summary, names) {
+function createImportCompareCard(title, summary) {
   const card = document.createElement('section');
   card.className = 'compare-card';
 
@@ -841,18 +1024,8 @@ function createImportCompareCard(title, summary, names) {
     t('import.summary.tags', { count: summary.tags })
   ].join('\n');
 
-  const groups = document.createElement('div');
-  groups.className = 'compare-names';
-  groups.textContent = `${t('import.previewGroups')}${names.groups.length ? `\n${names.groups.join('\n')}` : `\n${t('import.previewEmpty')}`}`;
-
-  const favorites = document.createElement('div');
-  favorites.className = 'compare-names';
-  favorites.textContent = `${t('import.previewFavorites')}${names.favorites.length ? `\n${names.favorites.join('\n')}` : `\n${t('import.previewEmpty')}`}`;
-
   card.appendChild(heading);
   card.appendChild(stats);
-  card.appendChild(groups);
-  card.appendChild(favorites);
 
   return card;
 }
@@ -882,6 +1055,38 @@ function createImportDiffSection(title, diff, labels) {
   section.appendChild(buildBlock(labels.removed, diff.removed, diff.removedTotal));
 
   return section;
+}
+
+function prepareImportOperation(mode, importedData) {
+  const currentData = state.data;
+  let resultData = null;
+
+  if (mode === IMPORT_MODE_APPEND) resultData = buildAppendImportResult(currentData, importedData);
+  else if (mode === IMPORT_MODE_MERGE) resultData = buildMergeImportResult(currentData, importedData);
+  else resultData = buildReplaceImportResult(importedData);
+
+  const currentSummary = summarizeData(currentData);
+  const sourceSummary = summarizeData(importedData);
+  const resultSummary = summarizeData(resultData);
+
+  return {
+    mode,
+    sourceSummary,
+    summary: resultSummary,
+    data: resultData,
+    deltas: {
+      groups: resultSummary.groups - currentSummary.groups,
+      idols: resultSummary.idols - currentSummary.idols,
+      favorites: resultSummary.favorites - currentSummary.favorites,
+      tags: resultSummary.tags - currentSummary.tags
+    },
+    diffs: {
+      groups: diffLabelLists(listGroupLabels(currentData), listGroupLabels(resultData)),
+      idols: diffLabelLists(listIdolLabels(currentData), listIdolLabels(resultData)),
+      favorites: diffLabelLists(listFavoriteLabels(currentData), listFavoriteLabels(resultData)),
+      tags: diffLabelLists(listTagLabels(currentData), listTagLabels(resultData), { limit: 8 })
+    }
+  };
 }
 
 function backupDataBeforeImport() {
@@ -915,62 +1120,123 @@ function showImportConfirm(preview) {
     wrap.className = 'field';
 
     const currentSummary = summarizeData(state.data);
-    const currentNames = collectPreviewNames(state.data);
-    const incomingNames = collectPreviewNames(preview.data);
-    const groupDiff = diffNameLists(
-      (state.data?.groups || []).map((group) => group?.name),
-      (preview.data?.groups || []).map((group) => group?.name)
-    );
-    const favoriteDiff = diffNameLists(
-      (state.data?.favorites || []).map((folder) => folder?.name),
-      (preview.data?.favorites || []).map((folder) => folder?.name)
-    );
+    const sourceSummary = preview.summary;
+    const operationByMode = {
+      [IMPORT_MODE_REPLACE]: prepareImportOperation(IMPORT_MODE_REPLACE, preview.data),
+      [IMPORT_MODE_MERGE]: prepareImportOperation(IMPORT_MODE_MERGE, preview.data),
+      [IMPORT_MODE_APPEND]: prepareImportOperation(IMPORT_MODE_APPEND, preview.data)
+    };
+    let selectedMode = IMPORT_MODE_REPLACE;
 
     const warning = document.createElement('div');
     warning.style.whiteSpace = 'pre-wrap';
-    warning.textContent = t('import.confirmWarning');
+
+    const modeRow = document.createElement('div');
+    modeRow.className = 'mode-row';
+
+    const makeModeButton = (mode, label) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'mode-chip';
+      button.textContent = label;
+      button.dataset.mode = mode;
+      button.addEventListener('click', () => {
+        selectedMode = mode;
+        renderPreview();
+      });
+      return button;
+    };
+
+    const modeButtons = [
+      makeModeButton(IMPORT_MODE_REPLACE, t('import.mode.replace')),
+      makeModeButton(IMPORT_MODE_MERGE, t('import.mode.merge')),
+      makeModeButton(IMPORT_MODE_APPEND, t('import.mode.append'))
+    ];
+    for (const button of modeButtons) modeRow.appendChild(button);
 
     const compareGrid = document.createElement('div');
     compareGrid.className = 'compare-grid';
-    compareGrid.appendChild(createImportCompareCard(t('import.currentData'), currentSummary, currentNames));
-    compareGrid.appendChild(createImportCompareCard(t('import.incomingData'), preview.summary, incomingNames));
 
     const delta = document.createElement('div');
     delta.className = 'compare-delta';
-    delta.textContent = [
-      t('import.deltaTitle'),
-      t('import.delta.groups', { delta: formatDelta(preview.summary.groups - currentSummary.groups) }),
-      t('import.delta.idols', { delta: formatDelta(preview.summary.idols - currentSummary.idols) }),
-      t('import.delta.favorites', { delta: formatDelta(preview.summary.favorites - currentSummary.favorites) }),
-      t('import.delta.tags', { delta: formatDelta(preview.summary.tags - currentSummary.tags) })
-    ].join('\n');
 
     const diffGrid = document.createElement('div');
     diffGrid.className = 'compare-grid';
-    diffGrid.appendChild(createImportDiffSection(t('import.diffGroupsTitle'), groupDiff, {
-      added: t('import.diffGroupsAdded'),
-      removed: t('import.diffGroupsRemoved')
-    }));
-    diffGrid.appendChild(createImportDiffSection(t('import.diffFavoritesTitle'), favoriteDiff, {
-      added: t('import.diffFavoritesAdded'),
-      removed: t('import.diffFavoritesRemoved')
-    }));
+
+    const confirmButton = btn(t('import.confirmReplace'), 'btn', () => {
+      closeModal();
+      resolve(operationByMode[selectedMode]);
+    });
+
+    const renderPreview = () => {
+      const operation = operationByMode[selectedMode];
+
+      warning.textContent =
+        selectedMode === IMPORT_MODE_MERGE
+          ? t('import.confirmWarningMerge')
+          : selectedMode === IMPORT_MODE_APPEND
+            ? t('import.confirmWarningAppend')
+            : t('import.confirmWarningReplace');
+
+      for (const button of modeButtons) {
+        button.classList.toggle('active', button.dataset.mode === selectedMode);
+      }
+
+      compareGrid.innerHTML = '';
+      compareGrid.appendChild(createImportCompareCard(t('import.currentData'), currentSummary));
+      compareGrid.appendChild(createImportCompareCard(t('import.sourceData'), sourceSummary));
+      compareGrid.appendChild(createImportCompareCard(t('import.resultData'), operation.summary));
+
+      delta.textContent = [
+        t('import.deltaTitle'),
+        t('import.delta.groups', { delta: formatDelta(operation.deltas.groups) }),
+        t('import.delta.idols', { delta: formatDelta(operation.deltas.idols) }),
+        t('import.delta.favorites', { delta: formatDelta(operation.deltas.favorites) }),
+        t('import.delta.tags', { delta: formatDelta(operation.deltas.tags) })
+      ].join('\n');
+
+      diffGrid.innerHTML = '';
+      diffGrid.appendChild(createImportDiffSection(t('import.diffGroupsTitle'), operation.diffs.groups, {
+        added: t('import.diffGroupsAdded'),
+        removed: t('import.diffGroupsRemoved')
+      }));
+      diffGrid.appendChild(createImportDiffSection(t('import.diffIdolsTitle'), operation.diffs.idols, {
+        added: t('import.diffIdolsAdded'),
+        removed: t('import.diffIdolsRemoved')
+      }));
+      diffGrid.appendChild(createImportDiffSection(t('import.diffFavoritesTitle'), operation.diffs.favorites, {
+        added: t('import.diffFavoritesAdded'),
+        removed: t('import.diffFavoritesRemoved')
+      }));
+      diffGrid.appendChild(createImportDiffSection(t('import.diffTagsTitle'), operation.diffs.tags, {
+        added: t('import.diffTagsAdded'),
+        removed: t('import.diffTagsRemoved')
+      }));
+
+      confirmButton.textContent =
+        selectedMode === IMPORT_MODE_MERGE
+          ? t('import.confirmMerge')
+          : selectedMode === IMPORT_MODE_APPEND
+            ? t('import.confirmAppend')
+            : t('import.confirmReplace');
+    };
 
     wrap.appendChild(warning);
+    wrap.appendChild(modeRow);
     wrap.appendChild(compareGrid);
     wrap.appendChild(delta);
     wrap.appendChild(diffGrid);
 
+    $('#modal')?.classList.add('modal-wide');
     openModal(t('import.confirmTitle'), wrap, [
       btn(t('modal.cancel'), 'btn btn-secondary', () => {
         closeModal();
-        resolve(false);
+        resolve(null);
       }),
-      btn(t('import.confirmReplace'), 'btn', () => {
-        closeModal();
-        resolve(true);
-      })
+      confirmButton
     ]);
+
+    renderPreview();
   });
 }
 
@@ -2201,10 +2467,10 @@ function initMenu() {
       return;
     }
 
-    const ok = await showImportConfirm(preview);
-    if (!ok) return;
+    const operation = await showImportConfirm(preview);
+    if (!operation) return;
 
-    applyImportedData(preview);
+    applyImportedData(operation);
   });
 
   btnRestoreBackup?.addEventListener('click', async () => {
