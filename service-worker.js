@@ -1,10 +1,12 @@
-const CACHE_NAME = 'oshitag-0.2.8-0';
+const CACHE_NAME = 'oshitag-0.2.9-0';
 
 const ASSETS = [
   './',
   './index.html',
   './assets/css/styles.css',
   './assets/js/app.js',
+  './assets/js/i18n.js',
+  './assets/js/import-utils.js',
   './manifest.json',
   './i18n/zh-CN.json',
   './i18n/en.json',

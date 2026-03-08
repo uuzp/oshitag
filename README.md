@@ -1,4 +1,4 @@
-# oshiTag v0.2.8
+# oshiTag v0.2.9
 
 纯 HTML/CSS/JS 的离线可用(PWA)小工具：管理「组合 → 偶像 → TAG」与「收藏夹」，并一键复制到剪贴板。
 
@@ -23,8 +23,8 @@
 右上角 `⋯` 菜单：
 - 导出：`# 组合 / ## 偶像 / ### TAG`，偶像应援色使用 `<!-- cheerColor: #RRGGBB -->`
 - 导入：读取上述结构；收藏夹使用 `# [FAVORITES]` 段落
-- 导入支持三种模式：覆盖、合并、追加
-- 导入前会显示当前数据、导入源、导入后结果的对比摘要，并列出组合 / 偶像 / 收藏夹 / TAG 的新增与移除差异，同时自动在浏览器 `localStorage` 中保存一份导入前备份
+- 导入支持两种模式：覆盖、合并
+- 导入前会显示当前数据、导入源、导入后结果的对比摘要，并列出组合 / 偶像 / 收藏夹 / TAG 的新增与移除差异；差异列表支持点击展开剩余项目；导入前会自动在浏览器 `localStorage` 中保存一份导入前备份
 - 可在右上角 `⋯` 菜单使用“恢复备份”回退到最近一次导入前状态
 
 ## 部署
@@ -43,6 +43,8 @@ python -m http.server 5173
 - `index.html`
 - `assets/css/styles.css`
 - `assets/js/app.js`
+- `assets/js/i18n.js`
+- `assets/js/import-utils.js`
 - `assets/icons/*`
 - `manifest.json`、`service-worker.js`
 

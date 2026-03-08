@@ -4,156 +4,32 @@
  * Click to copy, double-click to delete
  */
 
-const APP_VERSION = '0.2.8';
+import {
+  BUILTIN_LOCALES,
+  I18N_STORAGE_LANG,
+  applyI18n,
+  i18n,
+  initI18n,
+  loadUserLocales,
+  pickLocaleAuto,
+  safeParseJson,
+  saveUserLocales,
+  t
+} from './i18n.js';
+import {
+  IMPORT_MODE_MERGE,
+  IMPORT_MODE_REPLACE,
+  createImportTools,
+  formatDelta,
+  summarizeData
+} from './import-utils.js';
 
-// ---------- i18n ----------
-const I18N_STORAGE_LANG = 'oshitag:i18n:lang';
-const I18N_STORAGE_USER_LOCALES = 'oshitag:i18n:userLocales:v1';
-
-const BUILTIN_LOCALES = [
-  { code: 'zh-CN', path: './i18n/zh-CN.json' },
-  { code: 'en', path: './i18n/en.json' },
-  { code: 'ja', path: './i18n/ja.json' },
-  { code: 'ko', path: './i18n/ko.json' }
-];
-
-const i18n = {
-  ready: false,
-  locale: 'zh-CN',
-  mode: 'auto', // 'auto' | 'manual'
-  bundles: new Map(), // code -> { name, strings }
-  strings: {},
-  fallback: 'zh-CN'
-};
-
-function getBrowserLangCandidates() {
-  const raw = String(navigator.language || '').trim();
-  if (!raw) return ['zh-CN'];
-  const lower = raw.toLowerCase();
-  const base = lower.split('-')[0];
-  const out = [];
-  // Prefer exact match first
-  out.push(raw);
-  out.push(lower);
-  out.push(base);
-  // Common Chinese variants
-  if (base === 'zh') out.push('zh-CN');
-  return Array.from(new Set(out));
-}
-
-function safeParseJson(text) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
-function loadUserLocales() {
-  const raw = localStorage.getItem(I18N_STORAGE_USER_LOCALES);
-  if (!raw) return {};
-  const parsed = safeParseJson(raw);
-  if (!parsed || typeof parsed !== 'object') return {};
-  return parsed;
-}
-
-function saveUserLocales(obj) {
-  localStorage.setItem(I18N_STORAGE_USER_LOCALES, JSON.stringify(obj));
-}
-
-async function loadBuiltinLocale(def) {
-  try {
-    const res = await fetch(def.path, { cache: 'no-cache' });
-    const data = await res.json();
-    if (!data || typeof data !== 'object') throw new Error('invalid');
-    const name = String(data['meta.name'] || def.code);
-    return { code: def.code, name, strings: data };
-  } catch {
-    // If fetch fails (offline), keep minimal fallback
-    return { code: def.code, name: def.code, strings: {} };
-  }
-}
-
-function pickLocaleAuto() {
-  const have = new Set(i18n.bundles.keys());
-  for (const c of getBrowserLangCandidates()) {
-    const normalized = String(c).trim();
-    if (!normalized) continue;
-    // exact
-    if (have.has(normalized)) return normalized;
-    // case-insensitive match
-    const found = Array.from(have).find((x) => x.toLowerCase() === normalized.toLowerCase());
-    if (found) return found;
-    // base language match
-    const base = normalized.toLowerCase().split('-')[0];
-    const baseFound = Array.from(have).find((x) => x.toLowerCase().split('-')[0] === base);
-    if (baseFound) return baseFound;
-  }
-  return i18n.fallback;
-}
-
-function applyI18n() {
-  const fallback = i18n.bundles.get(i18n.fallback)?.strings || {};
-  const current = i18n.bundles.get(i18n.locale)?.strings || {};
-  i18n.strings = { ...fallback, ...current };
-
-  // Static nodes with data-i18n
-  for (const el of document.querySelectorAll('[data-i18n]')) {
-    const key = el.getAttribute('data-i18n');
-    if (!key) continue;
-    const text = t(key);
-    if (text) el.textContent = text;
-  }
-
-  document.title = t('app.title') || document.title;
-}
-
-function t(key, vars) {
-  const raw = i18n.strings?.[key];
-  const base = raw == null ? '' : String(raw);
-  if (!vars) return base;
-  return base.replace(/\{(\w+)\}/g, (_, k) => {
-    const v = vars[k];
-    return v == null ? '' : String(v);
-  });
-}
-
-async function initI18n() {
-  // Load built-ins
-  const builtins = await Promise.all(BUILTIN_LOCALES.map(loadBuiltinLocale));
-  for (const b of builtins) i18n.bundles.set(b.code, { name: b.name, strings: b.strings });
-
-  // Merge user locales (override / add)
-  const user = loadUserLocales();
-  for (const [code, bundle] of Object.entries(user)) {
-    if (!bundle || typeof bundle !== 'object') continue;
-    const name = String(bundle.name || code);
-    const strings = bundle.strings && typeof bundle.strings === 'object' ? bundle.strings : {};
-    i18n.bundles.set(code, { name, strings });
-  }
-
-  const saved = localStorage.getItem(I18N_STORAGE_LANG);
-  if (saved && saved !== 'auto') {
-    i18n.mode = 'manual';
-    i18n.locale = saved;
-  } else {
-    i18n.mode = 'auto';
-    i18n.locale = pickLocaleAuto();
-  }
-
-  if (!i18n.bundles.has(i18n.locale)) i18n.locale = i18n.fallback;
-
-  i18n.ready = true;
-  applyI18n();
-}
+const APP_VERSION = '0.2.9';
 
 const STORAGE_KEY = 'oshitag:data:v2';
 const LEGACY_KEY = 'oshitag:data:v1';
 const IMPORT_BACKUP_KEY = 'oshitag:data:import-backup:v1';
 const MD_FAVORITES_HEADING = '[FAVORITES]';
-const IMPORT_MODE_REPLACE = 'replace';
-const IMPORT_MODE_MERGE = 'merge';
-const IMPORT_MODE_APPEND = 'append';
 
 // Common penlight / idol cheer colors (not an official standard; meant to cover the usual set)
 const PRESET_COLORS = [
@@ -744,267 +620,14 @@ async function renameFavTag(folderId, tagId) {
   render();
 }
 
-function dedupeTagObjects(tags) {
-  const seen = new Set();
-  const out = [];
-
-  for (const tag of tags || []) {
-    const text = normalizeTagText(tag?.text ?? tag);
-    if (!text) continue;
-    const key = text.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push({ id: tag?.id || uid(), text });
-  }
-
-  return out;
-}
-
-function summarizeData(data) {
-  const summary = {
-    groups: Array.isArray(data?.groups) ? data.groups.length : 0,
-    idols: 0,
-    favorites: Array.isArray(data?.favorites) ? data.favorites.length : 0,
-    tags: 0
-  };
-
-  for (const group of data?.groups || []) {
-    summary.idols += Array.isArray(group?.idols) ? group.idols.length : 0;
-    for (const idol of group?.idols || []) summary.tags += Array.isArray(idol?.tags) ? idol.tags.length : 0;
-  }
-
-  for (const folder of data?.favorites || []) {
-    summary.tags += Array.isArray(folder?.tags) ? folder.tags.length : 0;
-  }
-
-  return summary;
-}
-
-function normalizeNameKey(name) {
-  return String(name || '').trim().toLowerCase();
-}
-
-function cloneTag(tag, { regenerateIds = false } = {}) {
-  return {
-    id: regenerateIds || !tag?.id ? uid() : tag.id,
-    text: normalizeTagText(tag?.text)
-  };
-}
-
-function cloneIdol(idol, { regenerateIds = false } = {}) {
-  return {
-    id: regenerateIds || !idol?.id ? uid() : idol.id,
-    name: String(idol?.name || '').trim(),
-    cheerColor: String(idol?.cheerColor || '').trim() || PRESET_COLORS[0],
-    tags: dedupeTagObjects((idol?.tags || []).map((tag) => cloneTag(tag, { regenerateIds })))
-  };
-}
-
-function cloneGroup(group, { regenerateIds = false } = {}) {
-  return {
-    id: regenerateIds || !group?.id ? uid() : group.id,
-    name: String(group?.name || '').trim(),
-    idols: (group?.idols || []).map((idol) => cloneIdol(idol, { regenerateIds })).filter((idol) => idol.name)
-  };
-}
-
-function cloneFavorite(folder, { regenerateIds = false } = {}) {
-  return {
-    id: regenerateIds || !folder?.id ? uid() : folder.id,
-    name: String(folder?.name || '').trim(),
-    tags: dedupeTagObjects((folder?.tags || []).map((tag) => cloneTag(tag, { regenerateIds })))
-  };
-}
-
-function cloneData(data, { regenerateIds = false } = {}) {
-  const next = defaultData();
-  next.groups = (data?.groups || []).map((group) => cloneGroup(group, { regenerateIds })).filter((group) => group.name);
-  next.favorites = (data?.favorites || []).map((folder) => cloneFavorite(folder, { regenerateIds })).filter((folder) => folder.name);
-
-  if (!regenerateIds) {
-    next.ui.activeGroupId = data?.ui?.activeGroupId || next.groups[0]?.id || null;
-    next.ui.activeFavId = data?.ui?.activeFavId || next.favorites[0]?.id || null;
-  }
-
-  ensureActiveIds(next);
-  return next;
-}
-
-function ensureActiveIds(data) {
-  if (!data?.groups?.some((group) => group.id === data?.ui?.activeGroupId)) {
-    data.ui.activeGroupId = data?.groups?.[0]?.id || null;
-  }
-  if (!data?.favorites?.some((folder) => folder.id === data?.ui?.activeFavId)) {
-    data.ui.activeFavId = data?.favorites?.[0]?.id || null;
-  }
-}
-
-function mergeTagList(targetTags, incomingTags) {
-  const existing = new Set((targetTags || []).map((tag) => normalizeTagText(tag.text).toLowerCase()));
-  for (const tag of incomingTags || []) {
-    const text = normalizeTagText(tag.text);
-    if (!text) continue;
-    const key = text.toLowerCase();
-    if (existing.has(key)) continue;
-    existing.add(key);
-    targetTags.push({ id: uid(), text });
-  }
-}
-
-function buildReplaceImportResult(importedData) {
-  return cloneData(importedData);
-}
-
-function buildAppendImportResult(currentData, importedData) {
-  const result = cloneData(currentData);
-  for (const group of importedData?.groups || []) result.groups.push(cloneGroup(group, { regenerateIds: true }));
-  for (const folder of importedData?.favorites || []) result.favorites.push(cloneFavorite(folder, { regenerateIds: true }));
-  ensureActiveIds(result);
-  return result;
-}
-
-function buildMergeImportResult(currentData, importedData) {
-  const result = cloneData(currentData);
-
-  for (const incomingGroup of importedData?.groups || []) {
-    const groupKey = normalizeNameKey(incomingGroup.name);
-    if (!groupKey) continue;
-
-    const targetGroup = result.groups.find((group) => normalizeNameKey(group.name) === groupKey);
-    if (!targetGroup) {
-      result.groups.push(cloneGroup(incomingGroup, { regenerateIds: true }));
-      continue;
-    }
-
-    for (const incomingIdol of incomingGroup.idols || []) {
-      const idolKey = normalizeNameKey(incomingIdol.name);
-      if (!idolKey) continue;
-
-      const targetIdol = targetGroup.idols.find((idol) => normalizeNameKey(idol.name) === idolKey);
-      if (!targetIdol) {
-        targetGroup.idols.push(cloneIdol(incomingIdol, { regenerateIds: true }));
-        continue;
-      }
-
-      mergeTagList(targetIdol.tags, incomingIdol.tags || []);
-      if (!targetIdol.cheerColor && incomingIdol.cheerColor) targetIdol.cheerColor = incomingIdol.cheerColor;
-    }
-  }
-
-  for (const incomingFolder of importedData?.favorites || []) {
-    const folderKey = normalizeNameKey(incomingFolder.name);
-    if (!folderKey) continue;
-
-    const targetFolder = result.favorites.find((folder) => normalizeNameKey(folder.name) === folderKey);
-    if (!targetFolder) {
-      result.favorites.push(cloneFavorite(incomingFolder, { regenerateIds: true }));
-      continue;
-    }
-
-    mergeTagList(targetFolder.tags, incomingFolder.tags || []);
-  }
-
-  ensureActiveIds(result);
-  return result;
-}
-
-function listGroupLabels(data) {
-  return (data?.groups || []).map((group) => String(group?.name || '').trim()).filter(Boolean);
-}
-
-function listIdolLabels(data) {
-  const out = [];
-  for (const group of data?.groups || []) {
-    const groupName = String(group?.name || '').trim();
-    for (const idol of group?.idols || []) {
-      const idolName = String(idol?.name || '').trim();
-      if (!groupName || !idolName) continue;
-      out.push(`${groupName} / ${idolName}`);
-    }
-  }
-  return out;
-}
-
-function listFavoriteLabels(data) {
-  return (data?.favorites || []).map((folder) => String(folder?.name || '').trim()).filter(Boolean);
-}
-
-function listTagLabels(data) {
-  const out = [];
-
-  for (const group of data?.groups || []) {
-    const groupName = String(group?.name || '').trim();
-    for (const idol of group?.idols || []) {
-      const idolName = String(idol?.name || '').trim();
-      for (const tag of idol?.tags || []) {
-        const text = normalizeTagText(tag?.text);
-        if (!groupName || !idolName || !text) continue;
-        out.push(`${groupName} / ${idolName} / ${text}`);
-      }
-    }
-  }
-
-  for (const folder of data?.favorites || []) {
-    const folderName = String(folder?.name || '').trim();
-    for (const tag of folder?.tags || []) {
-      const text = normalizeTagText(tag?.text);
-      if (!folderName || !text) continue;
-      out.push(`${MD_FAVORITES_HEADING} / ${folderName} / ${text}`);
-    }
-  }
-
-  return out;
-}
-
-function diffLabelLists(currentItems, incomingItems, { limit = 6 } = {}) {
-  const currentMap = new Map();
-  const incomingMap = new Map();
-
-  const addCount = (map, item) => {
-    const text = String(item || '').trim();
-    if (!text) return;
-    const key = normalizeNameKey(text);
-    const prev = map.get(key);
-    if (prev) {
-      prev.count += 1;
-    } else {
-      map.set(key, { text, count: 1 });
-    }
-  };
-
-  for (const item of currentItems || []) addCount(currentMap, item);
-  for (const item of incomingItems || []) addCount(incomingMap, item);
-
-  const added = [];
-  const removed = [];
-  let addedTotal = 0;
-  let removedTotal = 0;
-
-  for (const [key, entry] of incomingMap.entries()) {
-    const diff = entry.count - (currentMap.get(key)?.count || 0);
-    if (diff <= 0) continue;
-    addedTotal += diff;
-    added.push(diff > 1 ? `${entry.text} ×${diff}` : entry.text);
-  }
-
-  for (const [key, entry] of currentMap.entries()) {
-    const diff = entry.count - (incomingMap.get(key)?.count || 0);
-    if (diff <= 0) continue;
-    removedTotal += diff;
-    removed.push(diff > 1 ? `${entry.text} ×${diff}` : entry.text);
-  }
-
-  return {
-    added: added.slice(0, limit),
-    removed: removed.slice(0, limit),
-    addedTotal,
-    removedTotal
-  };
-}
-
-function formatDelta(value) {
-  if (value === 0) return '0';
-  return value > 0 ? `+${value}` : String(value);
+function getImportTools() {
+  return createImportTools({
+    defaultData,
+    uid,
+    normalizeTagText,
+    presetColors: PRESET_COLORS,
+    favoritesHeading: MD_FAVORITES_HEADING
+  });
 }
 
 function createImportCompareCard(title, summary) {
@@ -1026,11 +649,12 @@ function createImportCompareCard(title, summary) {
 
   card.appendChild(heading);
   card.appendChild(stats);
-
   return card;
 }
 
 function createImportDiffSection(title, diff, labels) {
+  if (!diff.addedTotal && !diff.removedTotal) return null;
+
   const section = document.createElement('section');
   section.className = 'compare-diff-card';
 
@@ -1045,48 +669,43 @@ function createImportDiffSection(title, diff, labels) {
 
     const text = document.createElement('div');
     text.className = 'compare-names';
-    const extra = total > items.length ? `\n${t('import.diffMore', { count: total - items.length })}` : '';
-    text.textContent = `${label}${items.length ? `\n${items.join('\n')}${extra}` : `\n${t('import.previewEmpty')}`}`;
     block.appendChild(text);
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'expand-link';
+
+    let expanded = false;
+    const visibleCount = 6;
+
+    const renderItems = () => {
+      const shown = expanded ? items : items.slice(0, visibleCount);
+      text.textContent = `${label}${shown.length ? `\n${shown.join('\n')}` : `\n${t('import.previewEmpty')}`}`;
+
+      if (items.length <= visibleCount) {
+        toggle.remove();
+        return;
+      }
+
+      toggle.textContent = expanded
+        ? t('import.diffCollapse')
+        : t('import.diffExpand', { count: total - shown.length });
+      if (!toggle.isConnected) block.appendChild(toggle);
+    };
+
+    toggle.addEventListener('click', () => {
+      expanded = !expanded;
+      renderItems();
+    });
+
+    renderItems();
     return block;
   };
 
-  section.appendChild(buildBlock(labels.added, diff.added, diff.addedTotal));
-  section.appendChild(buildBlock(labels.removed, diff.removed, diff.removedTotal));
+  if (diff.addedTotal) section.appendChild(buildBlock(labels.added, diff.addedItems, diff.addedTotal));
+  if (diff.removedTotal) section.appendChild(buildBlock(labels.removed, diff.removedItems, diff.removedTotal));
 
   return section;
-}
-
-function prepareImportOperation(mode, importedData) {
-  const currentData = state.data;
-  let resultData = null;
-
-  if (mode === IMPORT_MODE_APPEND) resultData = buildAppendImportResult(currentData, importedData);
-  else if (mode === IMPORT_MODE_MERGE) resultData = buildMergeImportResult(currentData, importedData);
-  else resultData = buildReplaceImportResult(importedData);
-
-  const currentSummary = summarizeData(currentData);
-  const sourceSummary = summarizeData(importedData);
-  const resultSummary = summarizeData(resultData);
-
-  return {
-    mode,
-    sourceSummary,
-    summary: resultSummary,
-    data: resultData,
-    deltas: {
-      groups: resultSummary.groups - currentSummary.groups,
-      idols: resultSummary.idols - currentSummary.idols,
-      favorites: resultSummary.favorites - currentSummary.favorites,
-      tags: resultSummary.tags - currentSummary.tags
-    },
-    diffs: {
-      groups: diffLabelLists(listGroupLabels(currentData), listGroupLabels(resultData)),
-      idols: diffLabelLists(listIdolLabels(currentData), listIdolLabels(resultData)),
-      favorites: diffLabelLists(listFavoriteLabels(currentData), listFavoriteLabels(resultData)),
-      tags: diffLabelLists(listTagLabels(currentData), listTagLabels(resultData), { limit: 8 })
-    }
-  };
 }
 
 function backupDataBeforeImport() {
@@ -1116,15 +735,15 @@ function loadImportBackup() {
 
 function showImportConfirm(preview) {
   return new Promise((resolve) => {
+    const importTools = getImportTools();
     const wrap = document.createElement('div');
     wrap.className = 'field';
 
     const currentSummary = summarizeData(state.data);
     const sourceSummary = preview.summary;
     const operationByMode = {
-      [IMPORT_MODE_REPLACE]: prepareImportOperation(IMPORT_MODE_REPLACE, preview.data),
-      [IMPORT_MODE_MERGE]: prepareImportOperation(IMPORT_MODE_MERGE, preview.data),
-      [IMPORT_MODE_APPEND]: prepareImportOperation(IMPORT_MODE_APPEND, preview.data)
+      [IMPORT_MODE_REPLACE]: importTools.prepareImportOperation(IMPORT_MODE_REPLACE, state.data, preview.data),
+      [IMPORT_MODE_MERGE]: importTools.prepareImportOperation(IMPORT_MODE_MERGE, state.data, preview.data)
     };
     let selectedMode = IMPORT_MODE_REPLACE;
 
@@ -1149,8 +768,7 @@ function showImportConfirm(preview) {
 
     const modeButtons = [
       makeModeButton(IMPORT_MODE_REPLACE, t('import.mode.replace')),
-      makeModeButton(IMPORT_MODE_MERGE, t('import.mode.merge')),
-      makeModeButton(IMPORT_MODE_APPEND, t('import.mode.append'))
+      makeModeButton(IMPORT_MODE_MERGE, t('import.mode.merge'))
     ];
     for (const button of modeButtons) modeRow.appendChild(button);
 
@@ -1174,9 +792,7 @@ function showImportConfirm(preview) {
       warning.textContent =
         selectedMode === IMPORT_MODE_MERGE
           ? t('import.confirmWarningMerge')
-          : selectedMode === IMPORT_MODE_APPEND
-            ? t('import.confirmWarningAppend')
-            : t('import.confirmWarningReplace');
+          : t('import.confirmWarningReplace');
 
       for (const button of modeButtons) {
         button.classList.toggle('active', button.dataset.mode === selectedMode);
@@ -1196,29 +812,48 @@ function showImportConfirm(preview) {
       ].join('\n');
 
       diffGrid.innerHTML = '';
-      diffGrid.appendChild(createImportDiffSection(t('import.diffGroupsTitle'), operation.diffs.groups, {
-        added: t('import.diffGroupsAdded'),
-        removed: t('import.diffGroupsRemoved')
-      }));
-      diffGrid.appendChild(createImportDiffSection(t('import.diffIdolsTitle'), operation.diffs.idols, {
-        added: t('import.diffIdolsAdded'),
-        removed: t('import.diffIdolsRemoved')
-      }));
-      diffGrid.appendChild(createImportDiffSection(t('import.diffFavoritesTitle'), operation.diffs.favorites, {
-        added: t('import.diffFavoritesAdded'),
-        removed: t('import.diffFavoritesRemoved')
-      }));
-      diffGrid.appendChild(createImportDiffSection(t('import.diffTagsTitle'), operation.diffs.tags, {
-        added: t('import.diffTagsAdded'),
-        removed: t('import.diffTagsRemoved')
-      }));
+      const sections = [
+        createImportDiffSection(t('import.diffGroupsTitle'), operation.diffs.groups, {
+          added: t('import.diffGroupsAdded'),
+          removed: t('import.diffGroupsRemoved')
+        }),
+        createImportDiffSection(t('import.diffIdolsTitle'), operation.diffs.idols, {
+          added: t('import.diffIdolsAdded'),
+          removed: t('import.diffIdolsRemoved')
+        }),
+        createImportDiffSection(t('import.diffFavoritesTitle'), operation.diffs.favorites, {
+          added: t('import.diffFavoritesAdded'),
+          removed: t('import.diffFavoritesRemoved')
+        }),
+        createImportDiffSection(t('import.diffTagsTitle'), operation.diffs.tags, {
+          added: t('import.diffTagsAdded'),
+          removed: t('import.diffTagsRemoved')
+        })
+      ].filter(Boolean);
+
+      if (sections.length === 0) {
+        const noChange = document.createElement('section');
+        noChange.className = 'compare-diff-card';
+
+        const title = document.createElement('h4');
+        title.className = 'compare-card-title';
+        title.textContent = t('import.noDiffTitle');
+
+        const body = document.createElement('div');
+        body.className = 'compare-names';
+        body.textContent = t('import.noDiffBody');
+
+        noChange.appendChild(title);
+        noChange.appendChild(body);
+        diffGrid.appendChild(noChange);
+      } else {
+        for (const section of sections) diffGrid.appendChild(section);
+      }
 
       confirmButton.textContent =
         selectedMode === IMPORT_MODE_MERGE
           ? t('import.confirmMerge')
-          : selectedMode === IMPORT_MODE_APPEND
-            ? t('import.confirmAppend')
-            : t('import.confirmReplace');
+          : t('import.confirmReplace');
     };
 
     wrap.appendChild(warning);
@@ -2313,91 +1948,6 @@ function downloadText(filename, text) {
   URL.revokeObjectURL(url);
 }
 
-function parseMarkdownImport(mdText) {
-  const text = String(mdText ?? '');
-  const lines = text.split(/\r?\n/);
-
-  const next = defaultData();
-
-  let currentGroup = null;
-  let currentIdol = null;
-  let currentFavFolder = null;
-  let inFav = false;
-
-  const takeCheerColorIfPresent = (i) => {
-    const line = (lines[i] ?? '').trim();
-    const m = line.match(/^<!--\s*cheerColor\s*:\s*(#[0-9a-fA-F]{6})\s*-->$/);
-    return m ? m[1] : null;
-  };
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    if (line.startsWith('# ')) {
-      const name = line.slice(2).trim();
-      if (!name) continue;
-      inFav = name === MD_FAVORITES_HEADING;
-      currentIdol = null;
-      currentGroup = null;
-      currentFavFolder = null;
-      if (!inFav) {
-        currentGroup = { id: uid(), name, idols: [] };
-        next.groups.push(currentGroup);
-        if (!next.ui.activeGroupId) next.ui.activeGroupId = currentGroup.id;
-      }
-      continue;
-    }
-
-    if (line.startsWith('## ')) {
-      const name = line.slice(3).trim();
-      if (!name) continue;
-      currentIdol = null;
-      if (inFav) {
-        const folder = { id: uid(), name, tags: [] };
-        next.favorites.push(folder);
-        currentFavFolder = folder;
-        if (!next.ui.activeFavId) next.ui.activeFavId = folder.id;
-      } else if (currentGroup) {
-        const idol = { id: uid(), name, cheerColor: PRESET_COLORS[0], tags: [] };
-        const maybeColor = takeCheerColorIfPresent(i + 1);
-        if (maybeColor) idol.cheerColor = maybeColor.toLowerCase();
-        currentGroup.idols.push(idol);
-        currentIdol = idol;
-      }
-      continue;
-    }
-
-    if (line.startsWith('### ')) {
-      const t = normalizeTagText(line.slice(4).trim());
-      if (!t) continue;
-      if (inFav) {
-        if (!currentFavFolder) continue;
-        currentFavFolder.tags.push({ id: uid(), text: t });
-      } else {
-        if (!currentIdol) continue;
-        currentIdol.tags.push({ id: uid(), text: t });
-      }
-      continue;
-    }
-  }
-
-  for (const group of next.groups) {
-    group.idols = group.idols.filter((idol) => idol.name);
-    for (const idol of group.idols) idol.tags = dedupeTagObjects(idol.tags);
-  }
-
-  for (const folder of next.favorites) {
-    folder.tags = dedupeTagObjects(folder.tags);
-  }
-
-  const summary = summarizeData(next);
-  const hasContent = summary.groups > 0 || summary.favorites > 0 || summary.tags > 0;
-  if (!hasContent) return null;
-
-  return { data: next, summary };
-}
-
 function applyImportedData(preview) {
   backupDataBeforeImport();
   state.data = preview.data;
@@ -2455,13 +2005,14 @@ function initMenu() {
   });
 
   $('#fileImportMd').addEventListener('change', async (e) => {
+    const importTools = getImportTools();
     const f = e.target.files?.[0];
     if (!f) return;
     const text = await f.text();
     e.target.value = '';
     closeMenu();
 
-    const preview = parseMarkdownImport(text);
+    const preview = importTools.parseMarkdownImport(text);
     if (!preview) {
       toast(t('toast.importEmpty'));
       return;
