@@ -43,6 +43,9 @@ python -m http.server 5173
 - `index.html`
 - `assets/css/styles.css`
 - `assets/js/app.js`
+- `assets/js/dialogs.js`
+- `assets/js/render.js`
+- `assets/js/sort-utils.js`
 - `assets/js/i18n.js`
 - `assets/js/import-utils.js`
 - `assets/icons/*`
@@ -51,5 +54,5 @@ python -m http.server 5173
 ## 说明
 
 - 数据保存在浏览器 `localStorage`。
-- PWA 使用 Service Worker 缓存静态资源；发布新版本时请同步更新 `manifest.json`、`assets/js/app.js` 与 `service-worker.js` 中的版本号。
+- PWA 使用 Service Worker 缓存静态资源；仅在正式发布版本时，再同步更新 `manifest.json`、`assets/js/app.js` 与 `service-worker.js` 中的版本号。
 
