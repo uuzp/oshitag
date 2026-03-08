@@ -23,7 +23,7 @@ import { createLocaleManager } from './locale-manager.js';
 import { createMenuController } from './menu-controller.js';
 import { createRenderer } from './render.js';
 
-const APP_VERSION = '0.2.9';
+const APP_VERSION = '0.3.0';
 
 const STORAGE_KEY = 'oshitag:data:v2';
 const LEGACY_KEY = 'oshitag:data:v1';
