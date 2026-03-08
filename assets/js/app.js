@@ -16,6 +16,7 @@ import {
   saveUserLocales,
   t
 } from './i18n.js';
+import { createDataManager } from './data-manager.js';
 import { createDialogs } from './dialogs.js';
 import { createImportWorkflow } from './import-workflow.js';
 import { createLocaleManager } from './locale-manager.js';
@@ -123,123 +124,43 @@ function parseTagsInput(input) {
   return uniqKeepOrder(tokens);
 }
 
-function defaultData() {
-  return {
-    version: 2,
-    ui: {
-      activeGroupId: null,
-      activeFavId: null
-    },
-    groups: [],
-    favorites: []
-  };
-}
+const dataManager = createDataManager({
+  storageKey: STORAGE_KEY,
+  legacyKey: LEGACY_KEY,
+  presetColors: PRESET_COLORS,
+  uid,
+  normalizeTagText
+});
 
-function migrateLegacyIfNeeded() {
-  const existing = localStorage.getItem(STORAGE_KEY);
-  if (existing) return;
+const {
+  state,
+  defaultData,
+  saveData,
+  findGroup,
+  findFav,
+  activeGroup,
+  activeFav,
+  setActiveGroup: setActiveGroupData,
+  setActiveFav: setActiveFavData,
+  createGroup,
+  createIdol,
+  appendIdolTags,
+  createFavorite,
+  appendFavoriteTags,
+  renameGroup: renameGroupData,
+  renameFavorite,
+  renameIdol: renameIdolData,
+  renameIdolTag: renameIdolTagData,
+  renameFavoriteTag,
+  deleteGroup: deleteGroupData,
+  deleteIdol: deleteIdolData,
+  deleteIdolTag,
+  deleteFavorite,
+  deleteFavoriteTag
+} = dataManager;
 
-  const legacy = localStorage.getItem(LEGACY_KEY);
-  if (!legacy) return;
-
-  try {
-    const old = JSON.parse(legacy);
-    if (!old || typeof old !== 'object') return;
-
-    const next = defaultData();
-
-    if (Array.isArray(old.groups)) {
-      next.groups = old.groups.map((group) => ({
-        id: group.id || uid(),
-        name: String(group.name ?? '').trim() || '未命名组合',
-        idols: Array.isArray(group.idols)
-          ? group.idols.map((idol) => ({
-              id: idol.id || uid(),
-              name: String(idol.name ?? '').trim() || '未命名偶像',
-              cheerColor: String(idol.cheerColor ?? '').trim() || PRESET_COLORS[0],
-              tags: Array.isArray(idol.tags)
-                ? idol.tags
-                    .map((tag) => ({ id: tag.id || uid(), text: normalizeTagText(tag.text) }))
-                    .filter((tag) => tag.text)
-                : []
-            }))
-          : []
-      }));
-    }
-
-    if (Array.isArray(old.combos)) {
-      next.favorites = old.combos.map((combo) => ({
-        id: combo.id || uid(),
-        name: String(combo.name ?? '').trim() || '未命名收藏夹',
-        tags: Array.isArray(combo.tags)
-          ? combo.tags
-              .map((tag) => ({ id: tag.id || uid(), text: normalizeTagText(tag.text) }))
-              .filter((tag) => tag.text)
-          : []
-      }));
-    }
-
-    next.ui.activeGroupId = next.groups[0]?.id || null;
-    next.ui.activeFavId = next.favorites[0]?.id || null;
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    // ignore
-  }
-}
-
-function loadData() {
-  migrateLegacyIfNeeded();
-
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultData();
-    const parsed = JSON.parse(raw);
-    const data = { ...defaultData(), ...parsed };
-
-    if (!data.ui || typeof data.ui !== 'object') data.ui = defaultData().ui;
-    if (!Array.isArray(data.groups)) data.groups = [];
-    if (!Array.isArray(data.favorites)) data.favorites = [];
-
-    for (const group of data.groups) {
-      if (!group.id) group.id = uid();
-      if (!Array.isArray(group.idols)) group.idols = [];
-      for (const idol of group.idols) {
-        if (!idol.id) idol.id = uid();
-        if (!idol.cheerColor) idol.cheerColor = PRESET_COLORS[0];
-        if (!Array.isArray(idol.tags)) idol.tags = [];
-        for (const tag of idol.tags) {
-          if (!tag.id) tag.id = uid();
-          tag.text = normalizeTagText(tag.text);
-        }
-        idol.tags = idol.tags.filter((tag) => tag.text);
-      }
-    }
-
-    for (const favorite of data.favorites) {
-      if (!favorite.id) favorite.id = uid();
-      if (!Array.isArray(favorite.tags)) favorite.tags = [];
-      for (const tag of favorite.tags) {
-        if (!tag.id) tag.id = uid();
-        tag.text = normalizeTagText(tag.text);
-      }
-      favorite.tags = favorite.tags.filter((tag) => tag.text);
-    }
-
-    if (!data.ui.activeGroupId && data.groups[0]) data.ui.activeGroupId = data.groups[0].id;
-    if (!data.ui.activeFavId && data.favorites[0]) data.ui.activeFavId = data.favorites[0].id;
-
-    return data;
-  } catch {
-    return defaultData();
-  }
-}
-
-const state = {
-  data: loadData(),
-  runtime: {
-    editMode: false
-  }
+state.runtime = {
+  editMode: false
 };
 
 function isEditMode() {
@@ -253,10 +174,6 @@ function setEditMode(v) {
 
 function toggleEditMode() {
   setEditMode(!isEditMode());
-}
-
-function saveData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
 }
 
 function toast(msg) {
@@ -401,32 +318,14 @@ async function copyText(label, tags) {
   });
 }
 
-function findGroup(id) {
-  return state.data.groups.find((group) => group.id === id) || null;
-}
-
-function findFav(id) {
-  return state.data.favorites.find((favorite) => favorite.id === id) || null;
-}
-
-function activeGroup() {
-  const id = state.data.ui.activeGroupId;
-  return (id && findGroup(id)) || state.data.groups[0] || null;
-}
-
-function activeFav() {
-  const id = state.data.ui.activeFavId;
-  return (id && findFav(id)) || state.data.favorites[0] || null;
-}
-
 function setActiveGroup(id) {
-  state.data.ui.activeGroupId = id;
+  setActiveGroupData(id);
   saveData();
   render();
 }
 
 function setActiveFav(id) {
-  state.data.ui.activeFavId = id;
+  setActiveFavData(id);
   saveData();
   render();
 }
@@ -443,9 +342,7 @@ async function renameGroup(groupId) {
   });
   if (name == null) return;
 
-  const trimmed = String(name).trim();
-  if (!trimmed) return;
-  group.name = trimmed;
+  if (!renameGroupData(groupId, name)) return;
   saveData();
   render();
 }
@@ -462,9 +359,7 @@ async function renameFavFolder(folderId) {
   });
   if (name == null) return;
 
-  const trimmed = String(name).trim();
-  if (!trimmed) return;
-  folder.name = trimmed;
+  if (!renameFavorite(folderId, name)) return;
   saveData();
   render();
 }
@@ -482,9 +377,7 @@ async function renameIdol(groupId, idolId) {
   });
   if (name == null) return;
 
-  const trimmed = String(name).trim();
-  if (!trimmed) return;
-  idol.name = trimmed;
+  if (!renameIdolData(groupId, idolId, name)) return;
   saveData();
   render();
 }
@@ -504,14 +397,11 @@ async function renameIdolTag(groupId, idolId, tagId) {
   });
   if (value == null) return;
 
-  const next = normalizeTagText(value);
-  if (!next) return;
-
-  const nextKey = next.toLowerCase();
-  const conflict = idol.tags.some((item) => item.id !== tagId && normalizeTagText(item.text).toLowerCase() === nextKey);
-  if (conflict) return toast(t('toast.tagExists') || t('toast.favTagExists') || '已存在');
-
-  tag.text = next;
+  const result = renameIdolTagData(groupId, idolId, tagId, value);
+  if (result !== 'ok') {
+    if (result === 'conflict') toast(t('toast.tagExists') || t('toast.favTagExists') || '已存在');
+    return;
+  }
   saveData();
   render();
 }
@@ -530,14 +420,11 @@ async function renameFavTag(folderId, tagId) {
   });
   if (value == null) return;
 
-  const next = normalizeTagText(value);
-  if (!next) return;
-
-  const nextKey = next.toLowerCase();
-  const conflict = folder.tags.some((item) => item.id !== tagId && normalizeTagText(item.text).toLowerCase() === nextKey);
-  if (conflict) return toast(t('toast.tagExists') || t('toast.favTagExists') || '已存在');
-
-  tag.text = next;
+  const result = renameFavoriteTag(folderId, tagId, value);
+  if (result !== 'ok') {
+    if (result === 'conflict') toast(t('toast.tagExists') || t('toast.favTagExists') || '已存在');
+    return;
+  }
   saveData();
   render();
 }
@@ -546,10 +433,7 @@ async function renameFavTag(folderId, tagId) {
 async function addGroup() {
   const name = await showPrompt({ title: t('prompt.groupAdd.title'), placeholder: t('prompt.groupAdd.placeholder') });
   if (!name) return;
-  const g = { id: uid(), name: name.trim(), idols: [] };
-  if (!g.name) return;
-  state.data.groups.push(g);
-  state.data.ui.activeGroupId = g.id;
+  if (!createGroup(name)) return;
   saveData();
   render();
 }
@@ -557,11 +441,7 @@ async function addGroup() {
 async function addIdol(groupId) {
   const name = await showPrompt({ title: t('prompt.idolAdd.title'), placeholder: t('prompt.idolAdd.placeholder') });
   if (!name) return;
-  const g = findGroup(groupId);
-  if (!g) return;
-  const idol = { id: uid(), name: name.trim(), cheerColor: PRESET_COLORS[0], tags: [] };
-  if (!idol.name) return;
-  g.idols.push(idol);
+  if (!createIdol(groupId, name)) return;
   saveData();
   render();
 }
@@ -572,50 +452,26 @@ async function addTagsToIdol(groupId, idolId) {
   const parts = parseTagsInput(raw);
   if (parts.length === 0) return;
 
-  const g = findGroup(groupId);
-  if (!g) return;
-  const idol = g.idols.find((i) => i.id === idolId);
-  if (!idol) return;
-
-  const existing = new Set(idol.tags.map((t) => normalizeTagText(t.text)).map((t) => t.toLowerCase()));
-  for (const p of parts) {
-    const key = p.toLowerCase();
-    if (existing.has(key)) continue;
-    existing.add(key);
-    idol.tags.push({ id: uid(), text: p });
-  }
+  appendIdolTags(groupId, idolId, parts);
 
   saveData();
   render();
 }
 
 function deleteGroup(groupId) {
-  const idx = state.data.groups.findIndex((g) => g.id === groupId);
-  if (idx === -1) return;
-  state.data.groups.splice(idx, 1);
-  if (state.data.ui.activeGroupId === groupId) state.data.ui.activeGroupId = state.data.groups[0]?.id || null;
+  if (!deleteGroupData(groupId)) return;
   saveData();
   render();
 }
 
 function deleteIdol(groupId, idolId) {
-  const g = findGroup(groupId);
-  if (!g) return;
-  const idx = g.idols.findIndex((i) => i.id === idolId);
-  if (idx === -1) return;
-  g.idols.splice(idx, 1);
+  if (!deleteIdolData(groupId, idolId)) return;
   saveData();
   render();
 }
 
 function deleteTag(groupId, idolId, tagId) {
-  const g = findGroup(groupId);
-  if (!g) return;
-  const idol = g.idols.find((i) => i.id === idolId);
-  if (!idol) return;
-  const idx = idol.tags.findIndex((t) => t.id === tagId);
-  if (idx === -1) return;
-  idol.tags.splice(idx, 1);
+  if (!deleteIdolTag(groupId, idolId, tagId)) return;
   saveData();
   render();
 }
@@ -623,10 +479,7 @@ function deleteTag(groupId, idolId, tagId) {
 async function addFavFolder() {
   const name = await showPrompt({ title: t('prompt.favAdd.title'), placeholder: t('prompt.favAdd.placeholder') });
   if (!name) return;
-  const f = { id: uid(), name: name.trim(), tags: [] };
-  if (!f.name) return;
-  state.data.favorites.push(f);
-  state.data.ui.activeFavId = f.id;
+  if (!createFavorite(name)) return;
   saveData();
   render();
 }
@@ -651,7 +504,7 @@ async function addFavTags(folderId) {
         return true;
       }
 
-      f.tags.push({ id: uid(), text: norm });
+      appendFavoriteTags(folderId, [norm]);
       saveData();
       render();
       toast(t('toast.favTagAdded'));
@@ -663,36 +516,20 @@ async function addFavTags(folderId) {
   const parts = parseTagsInput(raw);
   if (parts.length === 0) return;
 
-  const f = findFav(folderId);
-  if (!f) return;
-
-  const existing = new Set(f.tags.map((t) => normalizeTagText(t.text)).map((t) => t.toLowerCase()));
-  for (const p of parts) {
-    const key = p.toLowerCase();
-    if (existing.has(key)) continue;
-    existing.add(key);
-    f.tags.push({ id: uid(), text: p });
-  }
+  appendFavoriteTags(folderId, parts);
 
   saveData();
   render();
 }
 
 function deleteFavFolder(folderId) {
-  const idx = state.data.favorites.findIndex((f) => f.id === folderId);
-  if (idx === -1) return;
-  state.data.favorites.splice(idx, 1);
-  if (state.data.ui.activeFavId === folderId) state.data.ui.activeFavId = state.data.favorites[0]?.id || null;
+  if (!deleteFavorite(folderId)) return;
   saveData();
   render();
 }
 
 function deleteFavTag(folderId, tagId) {
-  const f = findFav(folderId);
-  if (!f) return;
-  const idx = f.tags.findIndex((t) => t.id === tagId);
-  if (idx === -1) return;
-  f.tags.splice(idx, 1);
+  if (!deleteFavoriteTag(folderId, tagId)) return;
   saveData();
   render();
 }

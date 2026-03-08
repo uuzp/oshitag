@@ -5,6 +5,7 @@ const ASSETS = [
   './index.html',
   './assets/css/styles.css',
   './assets/js/app.js',
+  './assets/js/data-manager.js',
   './assets/js/dialogs.js',
   './assets/js/i18n.js',
   './assets/js/import-workflow.js',
