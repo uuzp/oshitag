@@ -16,14 +16,10 @@ import {
   saveUserLocales,
   t
 } from './i18n.js';
-import {
-  IMPORT_MODE_MERGE,
-  IMPORT_MODE_REPLACE,
-  createImportTools,
-  formatDelta,
-  summarizeData
-} from './import-utils.js';
 import { createDialogs } from './dialogs.js';
+import { createImportWorkflow } from './import-workflow.js';
+import { createLocaleManager } from './locale-manager.js';
+import { createMenuController } from './menu-controller.js';
 import { createRenderer } from './render.js';
 
 const APP_VERSION = '0.2.9';
@@ -35,38 +31,29 @@ const MD_FAVORITES_HEADING = '[FAVORITES]';
 
 // Common penlight / idol cheer colors (not an official standard; meant to cover the usual set)
 const PRESET_COLORS = [
-  // Reds
   '#ff1744',
   '#ff3b30',
   '#ff5252',
-  // Oranges / Ambers
   '#ff6d00',
   '#ff8f00',
   '#ffab00',
-  // Yellows
   '#ffd600',
   '#ffea00',
-  // Greens
   '#00c853',
   '#00e676',
   '#64dd17',
-  // Cyans / Aquas
   '#00b8d4',
   '#00e5ff',
   '#18ffff',
-  // Blues
   '#2979ff',
   '#2962ff',
   '#304ffe',
-  // Purples
   '#651fff',
   '#7c4dff',
   '#b388ff',
-  // Pinks
   '#f50057',
   '#ff4081',
   '#ff80ab',
-  // White / Warm white
   '#ffffff',
   '#fff4d6'
 ];
@@ -105,10 +92,10 @@ function parseTagsInput(input) {
   let cur = '';
 
   const push = () => {
-    const t = cur.trim();
+    const text = cur.trim();
     cur = '';
-    if (!t) return;
-    const normalized = normalizeTagText(t);
+    if (!text) return;
+    const normalized = normalizeTagText(text);
     if (!normalized) return;
     tokens.push(normalized);
   };
@@ -162,33 +149,32 @@ function migrateLegacyIfNeeded() {
     const next = defaultData();
 
     if (Array.isArray(old.groups)) {
-      next.groups = old.groups.map((g) => ({
-        id: g.id || uid(),
-        name: String(g.name ?? '').trim() || '未命名组合',
-        idols: Array.isArray(g.idols)
-          ? g.idols.map((i) => ({
-              id: i.id || uid(),
-              name: String(i.name ?? '').trim() || '未命名偶像',
-              cheerColor: String(i.cheerColor ?? '').trim() || PRESET_COLORS[0],
-              tags: Array.isArray(i.tags)
-                ? i.tags
-                    .map((t) => ({ id: t.id || uid(), text: normalizeTagText(t.text) }))
-                    .filter((t) => t.text)
+      next.groups = old.groups.map((group) => ({
+        id: group.id || uid(),
+        name: String(group.name ?? '').trim() || '未命名组合',
+        idols: Array.isArray(group.idols)
+          ? group.idols.map((idol) => ({
+              id: idol.id || uid(),
+              name: String(idol.name ?? '').trim() || '未命名偶像',
+              cheerColor: String(idol.cheerColor ?? '').trim() || PRESET_COLORS[0],
+              tags: Array.isArray(idol.tags)
+                ? idol.tags
+                    .map((tag) => ({ id: tag.id || uid(), text: normalizeTagText(tag.text) }))
+                    .filter((tag) => tag.text)
                 : []
             }))
           : []
       }));
     }
 
-    // old combos -> favorites
     if (Array.isArray(old.combos)) {
-      next.favorites = old.combos.map((c) => ({
-        id: c.id || uid(),
-        name: String(c.name ?? '').trim() || '未命名收藏夹',
-        tags: Array.isArray(c.tags)
-          ? c.tags
-              .map((t) => ({ id: t.id || uid(), text: normalizeTagText(t.text) }))
-              .filter((t) => t.text)
+      next.favorites = old.combos.map((combo) => ({
+        id: combo.id || uid(),
+        name: String(combo.name ?? '').trim() || '未命名收藏夹',
+        tags: Array.isArray(combo.tags)
+          ? combo.tags
+              .map((tag) => ({ id: tag.id || uid(), text: normalizeTagText(tag.text) }))
+              .filter((tag) => tag.text)
           : []
       }));
     }
@@ -215,29 +201,29 @@ function loadData() {
     if (!Array.isArray(data.groups)) data.groups = [];
     if (!Array.isArray(data.favorites)) data.favorites = [];
 
-    for (const g of data.groups) {
-      if (!g.id) g.id = uid();
-      if (!Array.isArray(g.idols)) g.idols = [];
-      for (const idol of g.idols) {
+    for (const group of data.groups) {
+      if (!group.id) group.id = uid();
+      if (!Array.isArray(group.idols)) group.idols = [];
+      for (const idol of group.idols) {
         if (!idol.id) idol.id = uid();
         if (!idol.cheerColor) idol.cheerColor = PRESET_COLORS[0];
         if (!Array.isArray(idol.tags)) idol.tags = [];
-        for (const t of idol.tags) {
-          if (!t.id) t.id = uid();
-          t.text = normalizeTagText(t.text);
+        for (const tag of idol.tags) {
+          if (!tag.id) tag.id = uid();
+          tag.text = normalizeTagText(tag.text);
         }
-        idol.tags = idol.tags.filter((t) => t.text);
+        idol.tags = idol.tags.filter((tag) => tag.text);
       }
     }
 
-    for (const f of data.favorites) {
-      if (!f.id) f.id = uid();
-      if (!Array.isArray(f.tags)) f.tags = [];
-      for (const t of f.tags) {
-        if (!t.id) t.id = uid();
-        t.text = normalizeTagText(t.text);
+    for (const favorite of data.favorites) {
+      if (!favorite.id) favorite.id = uid();
+      if (!Array.isArray(favorite.tags)) favorite.tags = [];
+      for (const tag of favorite.tags) {
+        if (!tag.id) tag.id = uid();
+        tag.text = normalizeTagText(tag.text);
       }
-      f.tags = f.tags.filter((t) => t.text);
+      favorite.tags = favorite.tags.filter((tag) => tag.text);
     }
 
     if (!data.ui.activeGroupId && data.groups[0]) data.ui.activeGroupId = data.groups[0].id;
@@ -307,21 +293,19 @@ async function writeClipboard(text) {
     return true;
   } catch {
     try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      ta.style.top = '0';
-      // iOS Safari/PWA may zoom the page when focusing a small-font input.
-      // Ensure >=16px to avoid unintended zoom during copy fallback.
-      ta.style.fontSize = '16px';
-      ta.style.opacity = '0';
-      ta.style.pointerEvents = 'none';
-      document.body.appendChild(ta);
-      ta.select();
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '0';
+      textarea.style.fontSize = '16px';
+      textarea.style.opacity = '0';
+      textarea.style.pointerEvents = 'none';
+      document.body.appendChild(textarea);
+      textarea.select();
       const ok = document.execCommand('copy');
-      document.body.removeChild(ta);
+      document.body.removeChild(textarea);
       return ok;
     } catch {
       return false;
@@ -330,7 +314,7 @@ async function writeClipboard(text) {
 }
 
 function tagsToCopy(tags) {
-  const normalized = tags.map((t) => normalizeTagText(t.text ?? t)).filter(Boolean);
+  const normalized = tags.map((tag) => normalizeTagText(tag.text ?? tag)).filter(Boolean);
   return uniqKeepOrder(normalized);
 }
 
@@ -344,8 +328,8 @@ function suggestedTagsFromGroups({ preferGroupId = null, limit = 24 } = {}) {
   const out = [];
   const seen = new Set();
 
-  const add = (t) => {
-    const norm = normalizeTagText(t?.text ?? t);
+  const add = (tag) => {
+    const norm = normalizeTagText(tag?.text ?? tag);
     if (!norm) return;
     const key = norm.toLowerCase();
     if (seen.has(key)) return;
@@ -353,22 +337,22 @@ function suggestedTagsFromGroups({ preferGroupId = null, limit = 24 } = {}) {
     out.push(norm);
   };
 
-  const scanGroupReverse = (g) => {
-    if (!g || !Array.isArray(g.idols)) return;
-    for (let ii = g.idols.length - 1; ii >= 0; ii--) {
-      const idol = g.idols[ii];
+  const scanGroupReverse = (group) => {
+    if (!group || !Array.isArray(group.idols)) return;
+    for (let idolIndex = group.idols.length - 1; idolIndex >= 0; idolIndex--) {
+      const idol = group.idols[idolIndex];
       if (!idol || !Array.isArray(idol.tags)) continue;
-      for (let ti = idol.tags.length - 1; ti >= 0; ti--) add(idol.tags[ti]);
+      for (let tagIndex = idol.tags.length - 1; tagIndex >= 0; tagIndex--) add(idol.tags[tagIndex]);
     }
   };
 
   const prefer = preferGroupId ? findGroup(preferGroupId) : null;
   if (prefer) scanGroupReverse(prefer);
 
-  for (let gi = state.data.groups.length - 1; gi >= 0; gi--) {
-    const g = state.data.groups[gi];
-    if (prefer && g?.id === prefer.id) continue;
-    scanGroupReverse(g);
+  for (let groupIndex = state.data.groups.length - 1; groupIndex >= 0; groupIndex--) {
+    const group = state.data.groups[groupIndex];
+    if (prefer && group?.id === prefer.id) continue;
+    scanGroupReverse(group);
   }
 
   return out.slice(0, limit);
@@ -378,6 +362,7 @@ async function copyText(label, tags) {
   const list = tagsToCopy(tags);
   const text = list.join(' ');
   if (!text) return toast(t('toast.copyEmpty') || '');
+
   const ok = await writeClipboard(text);
   if (ok) {
     toast(t('toast.copied', { label }));
@@ -386,8 +371,6 @@ async function copyText(label, tags) {
 
   toast(t('toast.copyFailed'));
 
-  // Some environments (notably iOS Safari/PWA) may block programmatic clipboard
-  // writes unless the call is in a strict user-gesture. Provide a manual fallback.
   const wrap = document.createElement('div');
   wrap.className = 'field';
 
@@ -408,7 +391,6 @@ async function copyText(label, tags) {
 
   openModal(t('toast.copyFailed') || '复制失败', wrap, [btn(t('modal.gotIt') || '知道了', 'btn', closeModal)]);
   requestAnimationFrame(() => {
-    // Do not auto-select all: it looks odd and can fight user selection.
     textarea.focus();
     try {
       const len = textarea.value.length;
@@ -420,11 +402,11 @@ async function copyText(label, tags) {
 }
 
 function findGroup(id) {
-  return state.data.groups.find((g) => g.id === id) || null;
+  return state.data.groups.find((group) => group.id === id) || null;
 }
 
 function findFav(id) {
-  return state.data.favorites.find((f) => f.id === id) || null;
+  return state.data.favorites.find((favorite) => favorite.id === id) || null;
 }
 
 function activeGroup() {
@@ -450,43 +432,48 @@ function setActiveFav(id) {
 }
 
 async function renameGroup(groupId) {
-  const g = findGroup(groupId);
-  if (!g) return;
+  const group = findGroup(groupId);
+  if (!group) return;
+
   const name = await showPrompt({
     title: t('prompt.groupRename.title') || '编辑组合名',
     placeholder: t('prompt.groupRename.placeholder') || t('prompt.groupAdd.placeholder') || '组合名',
     okText: t('modal.ok') || '确定',
-    initialValue: g.name
+    initialValue: group.name
   });
   if (name == null) return;
+
   const trimmed = String(name).trim();
   if (!trimmed) return;
-  g.name = trimmed;
+  group.name = trimmed;
   saveData();
   render();
 }
 
 async function renameFavFolder(folderId) {
-  const f = findFav(folderId);
-  if (!f) return;
+  const folder = findFav(folderId);
+  if (!folder) return;
+
   const name = await showPrompt({
     title: t('prompt.favRename.title') || '编辑收藏夹名',
     placeholder: t('prompt.favRename.placeholder') || t('prompt.favAdd.placeholder') || '收藏夹名称',
     okText: t('modal.ok') || '确定',
-    initialValue: f.name
+    initialValue: folder.name
   });
   if (name == null) return;
+
   const trimmed = String(name).trim();
   if (!trimmed) return;
-  f.name = trimmed;
+  folder.name = trimmed;
   saveData();
   render();
 }
 
 async function renameIdol(groupId, idolId) {
-  const g = findGroup(groupId);
-  const idol = g?.idols?.find((x) => x.id === idolId) || null;
-  if (!g || !idol) return;
+  const group = findGroup(groupId);
+  const idol = group?.idols?.find((item) => item.id === idolId) || null;
+  if (!group || !idol) return;
+
   const name = await showPrompt({
     title: t('prompt.idolRename.title') || '编辑偶像名',
     placeholder: t('prompt.idolRename.placeholder') || t('prompt.idolAdd.placeholder') || '偶像名',
@@ -494,6 +481,7 @@ async function renameIdol(groupId, idolId) {
     initialValue: idol.name
   });
   if (name == null) return;
+
   const trimmed = String(name).trim();
   if (!trimmed) return;
   idol.name = trimmed;
@@ -502,25 +490,25 @@ async function renameIdol(groupId, idolId) {
 }
 
 async function renameIdolTag(groupId, idolId, tagId) {
-  const g = findGroup(groupId);
-  const idol = g?.idols?.find((x) => x.id === idolId) || null;
-  const tag = idol?.tags?.find((x) => x.id === tagId) || null;
-  if (!g || !idol || !tag) return;
+  const group = findGroup(groupId);
+  const idol = group?.idols?.find((item) => item.id === idolId) || null;
+  const tag = idol?.tags?.find((item) => item.id === tagId) || null;
+  if (!group || !idol || !tag) return;
 
   const current = normalizeTagText(tag.text);
-  const v = await showPrompt({
+  const value = await showPrompt({
     title: t('prompt.tagRename.title') || '编辑TAG',
     placeholder: t('prompt.tagRename.placeholder') || t('prompt.tagAdd.placeholder') || 'TAG',
     okText: t('modal.ok') || '确定',
     initialValue: current
   });
-  if (v == null) return;
+  if (value == null) return;
 
-  const next = normalizeTagText(v);
+  const next = normalizeTagText(value);
   if (!next) return;
 
   const nextKey = next.toLowerCase();
-  const conflict = idol.tags.some((x) => x.id !== tagId && normalizeTagText(x.text).toLowerCase() === nextKey);
+  const conflict = idol.tags.some((item) => item.id !== tagId && normalizeTagText(item.text).toLowerCase() === nextKey);
   if (conflict) return toast(t('toast.tagExists') || t('toast.favTagExists') || '已存在');
 
   tag.text = next;
@@ -529,325 +517,29 @@ async function renameIdolTag(groupId, idolId, tagId) {
 }
 
 async function renameFavTag(folderId, tagId) {
-  const f = findFav(folderId);
-  const tag = f?.tags?.find((x) => x.id === tagId) || null;
-  if (!f || !tag) return;
+  const folder = findFav(folderId);
+  const tag = folder?.tags?.find((item) => item.id === tagId) || null;
+  if (!folder || !tag) return;
 
   const current = normalizeTagText(tag.text);
-  const v = await showPrompt({
+  const value = await showPrompt({
     title: t('prompt.tagRename.title') || '编辑TAG',
     placeholder: t('prompt.tagRename.placeholder') || t('prompt.favTagAdd.title') || 'TAG',
     okText: t('modal.ok') || '确定',
     initialValue: current
   });
-  if (v == null) return;
+  if (value == null) return;
 
-  const next = normalizeTagText(v);
+  const next = normalizeTagText(value);
   if (!next) return;
 
   const nextKey = next.toLowerCase();
-  const conflict = f.tags.some((x) => x.id !== tagId && normalizeTagText(x.text).toLowerCase() === nextKey);
+  const conflict = folder.tags.some((item) => item.id !== tagId && normalizeTagText(item.text).toLowerCase() === nextKey);
   if (conflict) return toast(t('toast.tagExists') || t('toast.favTagExists') || '已存在');
 
   tag.text = next;
   saveData();
   render();
-}
-
-function getImportTools() {
-  return createImportTools({
-    defaultData,
-    uid,
-    normalizeTagText,
-    presetColors: PRESET_COLORS,
-    favoritesHeading: MD_FAVORITES_HEADING
-  });
-}
-
-function createImportCompareCard(title, summary) {
-  const card = document.createElement('section');
-  card.className = 'compare-card';
-
-  const heading = document.createElement('h4');
-  heading.className = 'compare-card-title';
-  heading.textContent = title;
-
-  const stats = document.createElement('div');
-  stats.className = 'compare-stats';
-  stats.textContent = [
-    t('import.summary.groups', { count: summary.groups }),
-    t('import.summary.idols', { count: summary.idols }),
-    t('import.summary.favorites', { count: summary.favorites }),
-    t('import.summary.tags', { count: summary.tags })
-  ].join('\n');
-
-  card.appendChild(heading);
-  card.appendChild(stats);
-  return card;
-}
-
-function createImportDiffSection(title, diff, labels) {
-  if (!diff.addedTotal && !diff.removedTotal) return null;
-
-  const section = document.createElement('section');
-  section.className = 'compare-diff-card';
-
-  const heading = document.createElement('h4');
-  heading.className = 'compare-card-title';
-  heading.textContent = title;
-  section.appendChild(heading);
-
-  const buildBlock = (label, items, total) => {
-    const block = document.createElement('div');
-    block.className = 'compare-diff-block';
-
-    const text = document.createElement('div');
-    text.className = 'compare-names';
-    block.appendChild(text);
-
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'expand-link';
-
-    let expanded = false;
-    const visibleCount = 6;
-
-    const renderItems = () => {
-      const shown = expanded ? items : items.slice(0, visibleCount);
-      text.textContent = `${label}${shown.length ? `\n${shown.join('\n')}` : `\n${t('import.previewEmpty')}`}`;
-
-      if (items.length <= visibleCount) {
-        toggle.remove();
-        return;
-      }
-
-      toggle.textContent = expanded
-        ? t('import.diffCollapse')
-        : t('import.diffExpand', { count: total - shown.length });
-      if (!toggle.isConnected) block.appendChild(toggle);
-    };
-
-    toggle.addEventListener('click', () => {
-      expanded = !expanded;
-      renderItems();
-    });
-
-    renderItems();
-    return block;
-  };
-
-  if (diff.addedTotal) section.appendChild(buildBlock(labels.added, diff.addedItems, diff.addedTotal));
-  if (diff.removedTotal) section.appendChild(buildBlock(labels.removed, diff.removedItems, diff.removedTotal));
-
-  return section;
-}
-
-function backupDataBeforeImport() {
-  try {
-    localStorage.setItem(IMPORT_BACKUP_KEY, JSON.stringify({
-      savedAt: new Date().toISOString(),
-      data: state.data
-    }));
-  } catch {
-    // ignore backup failures; import can still proceed
-  }
-}
-
-function loadImportBackup() {
-  const raw = localStorage.getItem(IMPORT_BACKUP_KEY);
-  if (!raw) return null;
-
-  const parsed = safeParseJson(raw);
-  if (!parsed || typeof parsed !== 'object' || !parsed.data || typeof parsed.data !== 'object') return null;
-
-  return {
-    savedAt: parsed.savedAt ? String(parsed.savedAt) : '',
-    data: parsed.data,
-    summary: summarizeData(parsed.data)
-  };
-}
-
-function showImportConfirm(preview) {
-  return new Promise((resolve) => {
-    const importTools = getImportTools();
-    const wrap = document.createElement('div');
-    wrap.className = 'field';
-
-    const currentSummary = summarizeData(state.data);
-    const sourceSummary = preview.summary;
-    const operationByMode = {
-      [IMPORT_MODE_REPLACE]: importTools.prepareImportOperation(IMPORT_MODE_REPLACE, state.data, preview.data),
-      [IMPORT_MODE_MERGE]: importTools.prepareImportOperation(IMPORT_MODE_MERGE, state.data, preview.data)
-    };
-    let selectedMode = IMPORT_MODE_REPLACE;
-
-    const warning = document.createElement('div');
-    warning.style.whiteSpace = 'pre-wrap';
-
-    const modeRow = document.createElement('div');
-    modeRow.className = 'mode-row';
-
-    const makeModeButton = (mode, label) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'mode-chip';
-      button.textContent = label;
-      button.dataset.mode = mode;
-      button.addEventListener('click', () => {
-        selectedMode = mode;
-        renderPreview();
-      });
-      return button;
-    };
-
-    const modeButtons = [
-      makeModeButton(IMPORT_MODE_REPLACE, t('import.mode.replace')),
-      makeModeButton(IMPORT_MODE_MERGE, t('import.mode.merge'))
-    ];
-    for (const button of modeButtons) modeRow.appendChild(button);
-
-    const compareGrid = document.createElement('div');
-    compareGrid.className = 'compare-grid';
-
-    const delta = document.createElement('div');
-    delta.className = 'compare-delta';
-
-    const diffGrid = document.createElement('div');
-    diffGrid.className = 'compare-grid';
-
-    const confirmButton = btn(t('import.confirmReplace'), 'btn', () => {
-      closeModal();
-      resolve(operationByMode[selectedMode]);
-    });
-
-    const renderPreview = () => {
-      const operation = operationByMode[selectedMode];
-
-      warning.textContent =
-        selectedMode === IMPORT_MODE_MERGE
-          ? t('import.confirmWarningMerge')
-          : t('import.confirmWarningReplace');
-
-      for (const button of modeButtons) {
-        button.classList.toggle('active', button.dataset.mode === selectedMode);
-      }
-
-      compareGrid.innerHTML = '';
-      compareGrid.appendChild(createImportCompareCard(t('import.currentData'), currentSummary));
-      compareGrid.appendChild(createImportCompareCard(t('import.sourceData'), sourceSummary));
-      compareGrid.appendChild(createImportCompareCard(t('import.resultData'), operation.summary));
-
-      delta.textContent = [
-        t('import.deltaTitle'),
-        t('import.delta.groups', { delta: formatDelta(operation.deltas.groups) }),
-        t('import.delta.idols', { delta: formatDelta(operation.deltas.idols) }),
-        t('import.delta.favorites', { delta: formatDelta(operation.deltas.favorites) }),
-        t('import.delta.tags', { delta: formatDelta(operation.deltas.tags) })
-      ].join('\n');
-
-      diffGrid.innerHTML = '';
-      const sections = [
-        createImportDiffSection(t('import.diffGroupsTitle'), operation.diffs.groups, {
-          added: t('import.diffGroupsAdded'),
-          removed: t('import.diffGroupsRemoved')
-        }),
-        createImportDiffSection(t('import.diffIdolsTitle'), operation.diffs.idols, {
-          added: t('import.diffIdolsAdded'),
-          removed: t('import.diffIdolsRemoved')
-        }),
-        createImportDiffSection(t('import.diffFavoritesTitle'), operation.diffs.favorites, {
-          added: t('import.diffFavoritesAdded'),
-          removed: t('import.diffFavoritesRemoved')
-        }),
-        createImportDiffSection(t('import.diffTagsTitle'), operation.diffs.tags, {
-          added: t('import.diffTagsAdded'),
-          removed: t('import.diffTagsRemoved')
-        })
-      ].filter(Boolean);
-
-      if (sections.length === 0) {
-        const noChange = document.createElement('section');
-        noChange.className = 'compare-diff-card';
-
-        const title = document.createElement('h4');
-        title.className = 'compare-card-title';
-        title.textContent = t('import.noDiffTitle');
-
-        const body = document.createElement('div');
-        body.className = 'compare-names';
-        body.textContent = t('import.noDiffBody');
-
-        noChange.appendChild(title);
-        noChange.appendChild(body);
-        diffGrid.appendChild(noChange);
-      } else {
-        for (const section of sections) diffGrid.appendChild(section);
-      }
-
-      confirmButton.textContent =
-        selectedMode === IMPORT_MODE_MERGE
-          ? t('import.confirmMerge')
-          : t('import.confirmReplace');
-    };
-
-    wrap.appendChild(warning);
-    wrap.appendChild(modeRow);
-    wrap.appendChild(compareGrid);
-    wrap.appendChild(delta);
-    wrap.appendChild(diffGrid);
-
-    $('#modal')?.classList.add('modal-wide');
-    openModal(t('import.confirmTitle'), wrap, [
-      btn(t('modal.cancel'), 'btn btn-secondary', () => {
-        closeModal();
-        resolve(null);
-      }),
-      confirmButton
-    ]);
-
-    renderPreview();
-  });
-}
-
-function showRestoreBackupConfirm(backup) {
-  return new Promise((resolve) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'field';
-
-    const warning = document.createElement('div');
-    warning.style.whiteSpace = 'pre-wrap';
-    warning.textContent = t('backup.restoreConfirm');
-
-    const meta = document.createElement('div');
-    meta.style.whiteSpace = 'pre-wrap';
-    meta.textContent = backup.savedAt
-      ? t('backup.savedAt', { time: backup.savedAt })
-      : t('backup.savedAtUnknown');
-
-    const summary = document.createElement('div');
-    summary.style.whiteSpace = 'pre-wrap';
-    summary.textContent = [
-      t('import.summary.groups', { count: backup.summary.groups }),
-      t('import.summary.idols', { count: backup.summary.idols }),
-      t('import.summary.favorites', { count: backup.summary.favorites }),
-      t('import.summary.tags', { count: backup.summary.tags })
-    ].join('\n');
-
-    wrap.appendChild(warning);
-    wrap.appendChild(meta);
-    wrap.appendChild(summary);
-
-    openModal(t('backup.restoreTitle'), wrap, [
-      btn(t('modal.cancel'), 'btn btn-secondary', () => {
-        closeModal();
-        resolve(false);
-      }),
-      btn(t('backup.restoreAction'), 'btn', () => {
-        closeModal();
-        resolve(true);
-      })
-    ]);
-  });
 }
 
 // ---------- Actions ----------
@@ -1040,413 +732,72 @@ const render = createRenderer({
   presetColors: PRESET_COLORS
 });
 
-// ---------- Markdown import/export ----------
-function nowISODate() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function escapeMd(text) {
-  return String(text ?? '').replace(/\r?\n/g, ' ').trim();
-}
-
-function exportMarkdown() {
-  const lines = [];
-  lines.push(`<!-- oshiTag v${APP_VERSION} export ${nowISODate()} -->`);
-  lines.push('');
-
-  for (const g of state.data.groups) {
-    lines.push(`# ${escapeMd(g.name)}`);
-    for (const idol of g.idols) {
-      lines.push(`## ${escapeMd(idol.name)}`);
-      if (idol.cheerColor) lines.push(`<!-- cheerColor: ${idol.cheerColor} -->`);
-      for (const t of idol.tags) {
-        lines.push(`### ${escapeMd(normalizeTagText(t.text))}`);
-      }
-      lines.push('');
-    }
-    lines.push('');
-  }
-
-  lines.push(`# ${MD_FAVORITES_HEADING}`);
-  for (const f of state.data.favorites) {
-    lines.push(`## ${escapeMd(f.name)}`);
-    for (const t of f.tags) {
-      lines.push(`### ${escapeMd(normalizeTagText(t.text))}`);
-    }
-    lines.push('');
-  }
-
-  return lines.join('\n').trimEnd() + '\n';
-}
-
-function downloadText(filename, text) {
-  const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function applyImportedData(preview) {
-  backupDataBeforeImport();
-  state.data = preview.data;
-  saveData();
-  render();
-  toast(t('toast.mdImported', {
-    groups: preview.summary.groups,
-    favorites: preview.summary.favorites,
-    tags: preview.summary.tags
-  }));
-}
-
-// ---------- Menu + PWA ----------
-function initMenu() {
-  const btnMenu = $('#btnMenu');
-  const menuPanel = $('#menuPanel');
-  const btnRestoreBackup = $('#btnRestoreBackup');
-
-  const updateRestoreButtonState = () => {
-    if (!btnRestoreBackup) return;
-    btnRestoreBackup.disabled = !loadImportBackup();
-  };
-
-  const closeMenu = () => {
-    menuPanel.classList.remove('open');
-    btnMenu.setAttribute('aria-expanded', 'false');
-    menuPanel.setAttribute('aria-hidden', 'true');
-  };
-
-  const openMenu = () => {
-    updateRestoreButtonState();
-    menuPanel.classList.add('open');
-    btnMenu.setAttribute('aria-expanded', 'true');
-    menuPanel.setAttribute('aria-hidden', 'false');
-  };
-
-  btnMenu.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (menuPanel.classList.contains('open')) closeMenu();
-    else openMenu();
-  });
-
-  document.addEventListener('click', () => closeMenu());
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      closeMenu();
-      closeModal();
-      if (isEditMode()) setEditMode(false);
-    }
-  });
-
-  $('#btnExportMd').addEventListener('click', () => {
-    downloadText(`oshiTag-${nowISODate()}.md`, exportMarkdown());
-    closeMenu();
-  });
-
-  $('#fileImportMd').addEventListener('change', async (e) => {
-    const importTools = getImportTools();
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const text = await f.text();
-    e.target.value = '';
-    closeMenu();
-
-    const preview = importTools.parseMarkdownImport(text);
-    if (!preview) {
-      toast(t('toast.importEmpty'));
-      return;
-    }
-
-    const operation = await showImportConfirm(preview);
-    if (!operation) return;
-
-    applyImportedData(operation);
-  });
-
-  btnRestoreBackup?.addEventListener('click', async () => {
-    closeMenu();
-
-    const backup = loadImportBackup();
-    if (!backup) {
-      toast(t('toast.backupMissing'));
-      return;
-    }
-
-    const ok = await showRestoreBackupConfirm(backup);
-    if (!ok) return;
-
-    state.data = backup.data;
-    saveData();
-    render();
-    toast(t('toast.backupRestored'));
-  });
-
-  $('#btnHelp').addEventListener('click', () => {
-    closeMenu();
-    showHelp();
-  });
-
-  $('#btnLang')?.addEventListener('click', () => {
-    closeMenu();
-    showLanguageModal();
-  });
-}
-
-function localeOptions() {
-  const items = [];
-  for (const [code, bundle] of i18n.bundles.entries()) {
-    items.push({ code, name: bundle?.name || code });
-  }
-  items.sort((a, b) => a.code.localeCompare(b.code));
-  return items;
-}
-
-function showLanguageModal() {
-  const prev = { mode: i18n.mode, locale: i18n.locale };
-
-  const wrap = document.createElement('div');
-  wrap.className = 'field';
-
-  const label = document.createElement('div');
-  label.style.color = 'var(--muted)';
-  label.style.fontSize = '12px';
-  label.style.marginBottom = '8px';
-  label.textContent = t('lang.current');
-
-  const sel = document.createElement('select');
-  sel.className = 'input';
-  sel.style.height = '42px';
-
-  const optAuto = document.createElement('option');
-  optAuto.value = 'auto';
-  optAuto.textContent = t('lang.auto');
-  sel.appendChild(optAuto);
-
-  for (const it of localeOptions()) {
-    const o = document.createElement('option');
-    o.value = it.code;
-    o.textContent = `${it.name} (${it.code})`;
-    sel.appendChild(o);
-  }
-
-  sel.value = i18n.mode === 'auto' ? 'auto' : i18n.locale;
-
-  const hint = document.createElement('div');
-  hint.style.color = 'var(--muted)';
-  hint.style.fontSize = '12px';
-  hint.style.marginTop = '10px';
-  hint.textContent = t('lang.jsonHint');
-
-  wrap.appendChild(label);
-  wrap.appendChild(sel);
-
-  const updateTexts = (els) => {
-    $('#modalTitle').textContent = t('lang.title');
-    label.textContent = t('lang.current');
-    optAuto.textContent = t('lang.auto');
-    hint.textContent = t('lang.jsonHint');
-
-    if (els?.edit) els.edit.textContent = t('lang.editJson');
-    if (els?.add) els.add.textContent = t('lang.add');
-    if (els?.del) els.del.textContent = t('lang.delete');
-    if (els?.ok) els.ok.textContent = t('modal.ok');
-  };
-
-  const applySelection = (v, { persist } = { persist: false }) => {
-    if (v === 'auto') {
-      if (persist) localStorage.setItem(I18N_STORAGE_LANG, 'auto');
-      i18n.mode = 'auto';
-      i18n.locale = pickLocaleAuto();
-    } else {
-      if (persist) localStorage.setItem(I18N_STORAGE_LANG, v);
-      i18n.mode = 'manual';
-      i18n.locale = v;
-    }
-    if (!i18n.bundles.has(i18n.locale)) i18n.locale = i18n.fallback;
-    applyI18n();
-    render();
-  };
-
-  const deleteBtn = btn(t('lang.delete'), 'btn btn-secondary', async () => {
-    const code = sel.value;
-    if (!code || code === 'auto') return;
-    if (BUILTIN_LOCALES.some((x) => x.code === code)) {
-      toast(t('lang.deleteNotAllowed'));
-      return;
-    }
-
-    const user = loadUserLocales();
-    if (!Object.prototype.hasOwnProperty.call(user, code)) {
-      toast(t('lang.deleteNotAllowed'));
-      return;
-    }
-
-    const ok = await showConfirm({
-      title: t('lang.delete'),
-      message: t('lang.deleteConfirm', { code }),
-      okText: t('lang.delete')
-    });
-    if (!ok) return;
-
-    const user2 = loadUserLocales();
-    if (!Object.prototype.hasOwnProperty.call(user2, code)) return;
-    delete user2[code];
-    saveUserLocales(user2);
-    i18n.bundles.delete(code);
-
-    for (const o of Array.from(sel.options)) {
-      if (o.value === code) o.remove();
-    }
-
-    if (i18n.mode === 'manual' && i18n.locale === code) {
-      localStorage.setItem(I18N_STORAGE_LANG, 'auto');
-      i18n.mode = 'auto';
-      i18n.locale = pickLocaleAuto();
-      if (!i18n.bundles.has(i18n.locale)) i18n.locale = i18n.fallback;
-      sel.value = 'auto';
-    }
-
-    applyI18n();
-    render();
-    toast(t('lang.deleted', { code }));
-    updateDeleteState();
-  });
-
-  function updateDeleteState() {
-    const code = sel.value;
-    if (!code || code === 'auto') {
-      deleteBtn.disabled = true;
-      return;
-    }
-    if (BUILTIN_LOCALES.some((x) => x.code === code)) {
-      deleteBtn.disabled = true;
-      return;
-    }
-    const user = loadUserLocales();
-    deleteBtn.disabled = !Object.prototype.hasOwnProperty.call(user, code);
-  }
-
-  sel.addEventListener('change', updateDeleteState);
-  updateDeleteState();
-
-  sel.addEventListener('change', () => {
-    applySelection(sel.value, { persist: false });
-    updateTexts(els);
-    updateDeleteState();
-    toast(t('lang.applied', { code: i18n.mode === 'auto' ? pickLocaleAuto() : i18n.locale }));
-  });
-
-  const onDismiss = () => {
-    i18n.mode = prev.mode;
-    i18n.locale = prev.locale;
-    applyI18n();
-    render();
-    closeModal();
-  };
-
-  const els = {
-    edit: btn(t('lang.editJson'), 'btn btn-secondary', async () => {
-      const mode = sel.value;
-      const code = mode === 'auto' ? pickLocaleAuto() : mode;
-      await showEditLocaleJson(code);
-      showLanguageModal();
-    }),
-    add: btn(t('lang.add'), 'btn btn-secondary', async () => {
-      await showAddLocaleFlow();
-      showLanguageModal();
-    }),
-    ok: btn(t('modal.ok'), 'btn', () => {
-      applySelection(sel.value, { persist: true });
-      closeModal();
-    })
-  };
-
-  els.del = deleteBtn;
-
-  updateTexts(els);
-
-  const actions = [els.edit, els.add, deleteBtn, els.ok];
-
-  openModal(t('lang.title'), wrap, actions, onDismiss);
-}
-
-async function showAddLocaleFlow() {
-  const code = await showPrompt({ title: t('lang.addCodeTitle'), placeholder: t('lang.addCodePlaceholder'), okText: t('modal.ok') });
-  if (!code) return;
-  const cleanCode = String(code).trim();
-  if (!cleanCode) return;
-  const name = await showPrompt({ title: t('lang.addNameTitle'), placeholder: t('lang.addNamePlaceholder'), okText: t('modal.ok') });
-  if (name == null) return;
-
-  const user = loadUserLocales();
-  if (!user[cleanCode]) user[cleanCode] = { name: String(name || cleanCode), strings: {} };
-  saveUserLocales(user);
-
-  i18n.bundles.set(cleanCode, { name: String(name || cleanCode), strings: {} });
-  await showEditLocaleJson(cleanCode);
-}
-
-function showEditLocaleJson(code) {
-  return new Promise((resolve) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'field';
-
-    const textarea = document.createElement('textarea');
-    textarea.className = 'input';
-    textarea.style.minHeight = '240px';
-    textarea.style.resize = 'vertical';
-
-    const current = i18n.bundles.get(code)?.strings || {};
-    // Don't require users to edit meta.name but allow it if they want
-    textarea.value = JSON.stringify(current, null, 2);
-
-    wrap.appendChild(textarea);
-
-    const onSave = () => {
-      const parsed = safeParseJson(textarea.value);
-      if (!parsed || typeof parsed !== 'object') {
-        toast(t('lang.invalidJson'));
-        return;
-      }
-
-      const user = loadUserLocales();
-      const prevName = user[code]?.name || i18n.bundles.get(code)?.name || code;
-      const name = String(parsed['meta.name'] || prevName);
-      user[code] = { name, strings: parsed };
-      saveUserLocales(user);
-
-      i18n.bundles.set(code, { name, strings: parsed });
-
-      // If editing current locale, re-apply
-      if (i18n.mode === 'manual' && i18n.locale === code) {
-        applyI18n();
-        render();
-      }
-
-      toast(t('lang.saved'));
-      closeModal();
-      resolve(true);
-    };
-
-    openModal(`${t('lang.manage')}：${code}`, wrap, [
-      btn(t('modal.cancel'), 'btn btn-secondary', () => {
-        closeModal();
-        resolve(false);
-      }),
-      btn(t('lang.save'), 'btn', onSave)
-    ]);
-
-    requestAnimationFrame(() => textarea.focus());
-  });
-}
+const importWorkflow = createImportWorkflow({
+  $,
+  t,
+  btn,
+  openModal,
+  closeModal,
+  safeParseJson,
+  defaultData,
+  uid,
+  normalizeTagText,
+  presetColors: PRESET_COLORS,
+  favoritesHeading: MD_FAVORITES_HEADING,
+  importBackupKey: IMPORT_BACKUP_KEY,
+  state,
+  saveData,
+  render,
+  toast
+});
+
+const { loadImportBackup, showImportConfirm, showRestoreBackupConfirm, applyImportedData } = importWorkflow;
+
+const localeManager = createLocaleManager({
+  $,
+  t,
+  btn,
+  openModal,
+  closeModal,
+  showPrompt,
+  showConfirm,
+  toast,
+  render,
+  BUILTIN_LOCALES,
+  I18N_STORAGE_LANG,
+  applyI18n,
+  i18n,
+  loadUserLocales,
+  pickLocaleAuto,
+  safeParseJson,
+  saveUserLocales
+});
+
+const { showLanguageModal } = localeManager;
+
+const menuController = createMenuController({
+  $,
+  t,
+  appVersion: APP_VERSION,
+  favoritesHeading: MD_FAVORITES_HEADING,
+  state,
+  normalizeTagText,
+  isEditMode,
+  setEditMode,
+  closeModal,
+  loadImportBackup,
+  parseMarkdownImport: importWorkflow.parseMarkdownImport,
+  showImportConfirm,
+  showRestoreBackupConfirm,
+  applyImportedData,
+  saveData,
+  render,
+  toast,
+  showHelp,
+  showLanguageModal
+});
+
+const { initMenu } = menuController;
 
 function initPwa() {
   if ('serviceWorker' in navigator) {

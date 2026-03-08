@@ -44,6 +44,9 @@ python -m http.server 5173
 - `assets/css/styles.css`
 - `assets/js/app.js`
 - `assets/js/dialogs.js`
+- `assets/js/import-workflow.js`
+- `assets/js/locale-manager.js`
+- `assets/js/menu-controller.js`
 - `assets/js/render.js`
 - `assets/js/sort-utils.js`
 - `assets/js/i18n.js`
