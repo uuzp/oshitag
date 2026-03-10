@@ -1,3 +1,5 @@
+[简体中文](README.md) | [English](README.en.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
+
 # oshiTag v0.3.0
 
 纯 HTML/CSS/JS 的离线可用(PWA)小工具：管理「组合 → 偶像 → TAG」与「收藏夹」，并一键复制到剪贴板。
