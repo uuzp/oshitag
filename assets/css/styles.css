@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   --bg: #0b1020;
   --panel: #111827;
   --text: #e5e7eb;
@@ -45,6 +46,13 @@ a { color: inherit; }
   gap: 12px;
 }
 
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .app-title h1 {
   font-size: 18px;
   margin: 0;
@@ -55,6 +63,40 @@ a { color: inherit; }
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.icon-link {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  height: 40px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.03);
+  color: var(--text);
+  border-radius: 12px;
+  transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.icon-link:hover {
+  border-color: rgba(255,255,255,0.28);
+  background: rgba(255,255,255,0.08);
+}
+
+.icon-link:active {
+  transform: translateY(1px);
+}
+
+.icon-link:focus-visible {
+  outline: none;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(96,165,250,0.18);
+}
+
+.icon-link svg {
+  width: 18px;
+  height: 18px;
 }
 
 .btn.btn-edit {
@@ -482,12 +524,21 @@ body.edit-on .tag {
 
 .input {
   width: 100%;
+  background-color: rgba(255,255,255,0.03);
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 12px;
   padding: 10px 12px;
   color: var(--text);
+  color-scheme: dark;
   outline: none;
+}
+
+select.input,
+select.input option,
+select.input optgroup {
+  background-color: var(--panel);
+  color: var(--text);
 }
 
 /* iOS Safari zooms the page when focusing inputs with font-size < 16px */
