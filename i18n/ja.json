@@ -40,6 +40,7 @@
   "toast.tagExists": "そのタグはすでにあります",
   "toast.mdImported": "インポートしました：グループ {groups} / フォルダ {favorites} / タグ {tags}",
   "toast.importEmpty": "このファイルには取り込める内容がありません",
+  "toast.importReadFailed": "インポートファイルの読み込みに失敗しました。iOS の「ファイル」から .md ファイルを選び直して再試行してください。",
   "toast.backupMissing": "復元できるインポート前バックアップがありません",
   "toast.backupRestored": "直前のインポート前バックアップを復元しました",
   "toast.hexInvalid": "#39c5bb のようなHEXを入力してください",

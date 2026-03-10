@@ -73,6 +73,30 @@ export function createMenuController({
     URL.revokeObjectURL(url);
   }
 
+  async function readImportFileText(file) {
+    if (!file) return '';
+
+    if (typeof file.text === 'function') {
+      try {
+        return await file.text();
+      } catch {
+        // Fall through to FileReader for older Safari / iOS WebKit implementations.
+      }
+    }
+
+    return await new Promise((resolve, reject) => {
+      if (typeof FileReader === 'undefined') {
+        reject(new Error('FileReader is not available'));
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+      reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+      reader.readAsText(file);
+    });
+  }
+
   function initMenu() {
     const btnMenu = $('#btnMenu');
     const menuPanel = $('#menuPanel');
@@ -120,19 +144,24 @@ export function createMenuController({
       const file = event.target.files?.[0];
       if (!file) return;
 
-      const text = await file.text();
-      event.target.value = '';
       closeMenu();
 
-      const preview = parseMarkdownImport(text);
-      if (!preview) {
-        toast(t('toast.importEmpty'));
-        return;
-      }
+      try {
+        const text = await readImportFileText(file);
+        const preview = parseMarkdownImport(text);
+        if (!preview) {
+          toast(t('toast.importEmpty'));
+          return;
+        }
 
-      const operation = await showImportConfirm(preview);
-      if (!operation) return;
-      applyImportedData(operation);
+        const operation = await showImportConfirm(preview);
+        if (!operation) return;
+        applyImportedData(operation);
+      } catch {
+        toast(t('toast.importReadFailed'));
+      } finally {
+        event.target.value = '';
+      }
     });
 
     btnRestoreBackup?.addEventListener('click', async () => {

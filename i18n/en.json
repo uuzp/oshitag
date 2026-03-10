@@ -39,6 +39,7 @@
   "toast.tagExists": "Tag already exists",
   "toast.mdImported": "Imported: {groups} groups / {favorites} folders / {tags} tags",
   "toast.importEmpty": "No importable content found in this file",
+  "toast.importReadFailed": "Failed to read the import file. Please reselect the .md file from Files on iOS and try again.",
   "toast.backupMissing": "No import backup available",
   "toast.backupRestored": "Restored the latest pre-import backup",
   "toast.hexInvalid": "Please enter HEX like #39c5bb",

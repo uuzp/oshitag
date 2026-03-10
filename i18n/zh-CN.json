@@ -40,6 +40,7 @@
   "toast.tagExists": "已经有这个TAG",
   "toast.mdImported": "已导入：{groups} 个组合 / {favorites} 个收藏夹 / {tags} 个TAG",
   "toast.importEmpty": "导入文件里没有可用内容",
+  "toast.importReadFailed": "读取导入文件失败，请在 iOS 的“文件”里重新选择该 .md 文件后再试",
   "toast.backupMissing": "没有可恢复的导入前备份",
   "toast.backupRestored": "已恢复最近一次导入前备份",
   "toast.hexInvalid": "请输入形如 #39c5bb 的HEX颜色",
